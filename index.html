@@ -2,7 +2,11 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Agency Planner">
+<meta name="theme-color" content="#0F0F0F">
 <title>Agency Planner</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -295,80 +299,159 @@ body.is-col-resizing *{cursor:col-resize!important}
 body.is-row-dragging{cursor:grabbing!important;user-select:none!important}
 body.is-row-dragging *{cursor:grabbing!important}
 
+@keyframes mobCardIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
 ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--g5);border-radius:3px}::-webkit-scrollbar-thumb:hover{background:var(--g3)}
 
 /* MOBILE HAMBURGER */
-.mob-burger{display:none;width:36px;height:36px;border:none;background:none;cursor:pointer;color:var(--bk);align-items:center;justify-content:center;border-radius:var(--radius-sm);flex-shrink:0}
-.mob-burger:hover{background:var(--g6)}
+.mob-burger{display:none;width:36px;height:36px;border:none;background:none;cursor:pointer;color:var(--bk);align-items:center;justify-content:center;border-radius:var(--radius-sm);flex-shrink:0;-webkit-tap-highlight-color:transparent}
 .mob-burger svg{width:20px;height:20px}
-.sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:59;backdrop-filter:blur(2px)}
+.sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0);z-index:59;backdrop-filter:blur(0px);transition:background .3s ease,backdrop-filter .3s ease}
+.sb-overlay.mob-open{display:block;background:rgba(0,0,0,.5);backdrop-filter:blur(4px)}
 
 /* MOBILE CARD VIEW */
-.mob-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--g55);padding:14px 16px;margin-bottom:8px;box-shadow:var(--shadow)}
-.mob-card-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.mob-card{background:var(--white);border-radius:12px;border:1px solid rgba(0,0,0,.06);padding:16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.04);
+  transition:transform .15s cubic-bezier(.2,.8,.4,1),box-shadow .15s ease;
+  -webkit-tap-highlight-color:transparent;cursor:pointer;will-change:transform}
+.mob-card:active{transform:scale(.97);box-shadow:0 0 0 rgba(0,0,0,0)}
+.mob-card-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .mob-card-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.mob-card-name{font-size:14px;font-weight:600;flex:1;letter-spacing:-.02em}
-.mob-card-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.mob-card-pill{height:26px;padding:0 10px;border-radius:4px;font-size:10px;font-weight:700;color:#fff;display:inline-flex;align-items:center}
-.mob-card-date{font-size:11px;color:var(--g3);font-weight:500}
-.mob-card-owners{display:flex;gap:-4px;margin-left:auto}
-.mob-card-owners .owner-av{width:22px;height:22px;font-size:8px;margin-left:-4px}
-.mob-grp-head{display:flex;align-items:center;gap:8px;padding:12px 4px 8px;cursor:pointer}
-.mob-grp-head .mob-grp-bar{width:4px;height:20px;border-radius:2px;flex-shrink:0}
-.mob-grp-head .mob-grp-name{font-size:14px;font-weight:700;flex:1;letter-spacing:-.02em}
-.mob-grp-head .mob-grp-count{font-size:11px;color:var(--g4);font-weight:500}
-.mob-add-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px dashed var(--g5);border-radius:var(--radius);color:var(--g4);font-size:12px;font-weight:500;cursor:pointer;margin-bottom:16px}
-.mob-add-btn:active{background:var(--g6)}
+.mob-card-name{font-size:15px;font-weight:600;flex:1;letter-spacing:-.03em;line-height:1.3}
+.mob-card-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.mob-card-pill{height:28px;padding:0 12px;border-radius:6px;font-size:11px;font-weight:700;color:#fff;display:inline-flex;align-items:center;letter-spacing:-.01em}
+.mob-card-date{font-size:12px;color:var(--g3);font-weight:500}
+.mob-card-owners{display:flex;margin-left:auto}
+.mob-card-owners .owner-av{width:24px;height:24px;font-size:9px;margin-left:-6px;border:2px solid var(--white)}
+.mob-grp-head{display:flex;align-items:center;gap:10px;padding:18px 4px 10px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.mob-grp-head .mob-grp-bar{width:4px;height:22px;border-radius:2px;flex-shrink:0}
+.mob-grp-head .mob-grp-name{font-size:16px;font-weight:800;flex:1;letter-spacing:-.03em}
+.mob-grp-head .mob-grp-count{font-size:12px;color:var(--g4);font-weight:500}
+.mob-grp-head .mob-grp-toggle{font-size:12px;color:var(--g4);transition:transform .2s ease}
+.mob-grp-items{overflow:hidden}
+.mob-add-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:14px;border-radius:12px;color:var(--g3);font-size:13px;font-weight:600;cursor:pointer;margin-bottom:20px;background:rgba(0,0,0,.02);border:none;
+  -webkit-tap-highlight-color:transparent;transition:background .15s ease}
+.mob-add-btn:active{background:rgba(0,0,0,.06)}
 
 /* MOBILE BOTTOM BAR */
-.mob-bottom{display:none;position:fixed;bottom:0;left:0;right:0;height:56px;background:var(--white);border-top:1px solid var(--g55);z-index:50;padding:0 8px;align-items:center;justify-content:space-around}
-.mob-bottom-btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 12px;border:none;background:none;color:var(--g3);font-size:9px;font-weight:600;cursor:pointer;border-radius:var(--radius-sm);font-family:var(--font);letter-spacing:0}
+.mob-bottom{display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.92);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-top:1px solid rgba(0,0,0,.06);z-index:50;padding:0 8px;padding-bottom:env(safe-area-inset-bottom,0);align-items:center;justify-content:space-around}
+.mob-bottom-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 16px;border:none;background:none;color:var(--g4);font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);letter-spacing:0;
+  -webkit-tap-highlight-color:transparent;transition:color .15s ease,transform .1s ease}
+.mob-bottom-btn:active{transform:scale(.9)}
 .mob-bottom-btn.active{color:var(--bk)}
-.mob-bottom-btn svg{width:20px;height:20px}
+.mob-bottom-btn svg{width:22px;height:22px}
+
+/* MOBILE STATUS QUICK-CHANGE */
+.mob-status-row{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--g6)}
+.mob-status-opt{flex:1;height:32px;border-radius:6px;border:none;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);letter-spacing:-.01em;
+  transition:transform .12s ease,opacity .12s ease;-webkit-tap-highlight-color:transparent;opacity:.5}
+.mob-status-opt:active{transform:scale(.92)}
+.mob-status-opt.active{opacity:1;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+
+/* MOBILE BOTTOM SHEET (replaces popovers) */
+.mob-sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:85;display:none;transition:background .25s ease}
+.mob-sheet-bg.open{display:block;background:rgba(0,0,0,.4)}
+.mob-sheet{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-radius:16px 16px 0 0;z-index:86;
+  transform:translateY(100%);transition:transform .35s cubic-bezier(.32,.72,0,1);
+  max-height:70vh;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0)}
+.mob-sheet.open{transform:translateY(0)}
+.mob-sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--g5);margin:10px auto 6px;flex-shrink:0}
+.mob-sheet-title{font-size:15px;font-weight:700;padding:8px 20px 12px;letter-spacing:-.03em}
+.mob-sheet-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 20px 20px}
+.mob-sheet-item{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--g6);font-size:14px;font-weight:500;
+  -webkit-tap-highlight-color:transparent;cursor:pointer;transition:opacity .1s}
+.mob-sheet-item:active{opacity:.5}
+.mob-sheet-item:last-child{border-bottom:none}
 
 /* === MOBILE RESPONSIVE === */
 @media(max-width:768px){
-  .sidebar{left:-260px;transition:left .25s cubic-bezier(.4,0,.2,1);width:260px}
+  html{overflow:hidden;height:100%}
+  body{overflow:hidden;height:100%;position:fixed;width:100%}
+
+  .sidebar{left:-280px;transition:left .3s cubic-bezier(.32,.72,0,1);width:280px}
   .sidebar.mob-open{left:0}
-  .sb-overlay.mob-open{display:block}
-  .main{margin-left:0!important;padding-bottom:64px}
+  .main{margin-left:0!important;padding-bottom:0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
   .mob-burger{display:flex}
-  .mob-bottom{display:flex}
+  .mob-bottom{display:flex;height:calc(56px + env(safe-area-inset-bottom,0))}
 
   /* Topbar */
-  .topbar{padding:0 12px;gap:6px;height:52px}
-  .topbar-title{font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .topbar{padding:0 14px;gap:8px;height:52px;flex-shrink:0;
+    padding-top:env(safe-area-inset-top,0);
+    background:rgba(255,255,255,.92);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px)}
+  .topbar-title{font-size:16px;font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.04em}
   .topbar-type{display:none}
   .view-tabs{display:none}
   .tb{display:none}
 
-  /* Workspace */
-  .ws{padding:12px 12px 20px}
+  /* Workspace — scrollable area */
+  .ws{padding:8px 16px 80px;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
 
   /* Hide desktop table on mobile, show cards */
   .grp{display:none}
   .add-grp{display:none}
   .mob-view{display:block!important}
 
-  /* Timeline: horizontal scroll */
+  /* Timeline */
   .tl-bar-wrap{height:calc(100vh - 170px)}
   .tl-side{width:140px;min-width:140px}
   .tl-lbl{font-size:10px;padding:0 8px}
   .tl-side-head{padding:0 8px;font-size:9px}
+  .tl-tb{padding:8px 12px}
 
-  /* Panel full screen on mobile */
-  .pnl{width:100%;right:-100%}
-  .pnl-head{padding:16px}
-  .pnl-body{padding:16px}
+  /* Panel — slide up from bottom on mobile */
+  .pnl{width:100%;right:auto;left:0;bottom:0;top:auto;height:90vh;border-radius:16px 16px 0 0;
+    transform:translateY(100%);transition:transform .35s cubic-bezier(.32,.72,0,1);right:auto!important}
+  .pnl.open{transform:translateY(0);right:auto!important}
+  .pnl-head{padding:8px 20px 16px;border-bottom:1px solid var(--g6)}
+  .pnl-head::before{content:'';display:block;width:36px;height:4px;border-radius:2px;background:var(--g5);margin:0 auto 12px}
+  .pnl-head h2{font-size:18px}
+  .pnl-body{padding:20px;-webkit-overflow-scrolling:touch}
 
-  /* Popover */
-  .pop{max-width:calc(100vw - 24px)}
+  /* Popover — use bottom sheets instead on mobile */
+  .pop{position:fixed!important;bottom:0!important;left:0!important;right:0!important;top:auto!important;
+    max-width:100%!important;width:100%!important;border-radius:16px 16px 0 0;max-height:60vh;
+    padding:8px 8px env(safe-area-inset-bottom,8px);
+    transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);display:block!important;
+    box-shadow:0 -4px 30px rgba(0,0,0,.12)}
+  .pop.open{transform:translateY(0)}
+  .pop::before{content:'';display:block;width:36px;height:4px;border-radius:2px;background:var(--g5);margin:6px auto 8px}
+  .po-i{padding:12px 12px;font-size:14px}
+
   .bar-pop{max-width:calc(100vw - 24px)}
-  .ctx-menu{max-width:calc(100vw - 24px)}
+
+  .ctx-menu{position:fixed!important;bottom:0!important;left:0!important;right:0!important;top:auto!important;
+    max-width:100%!important;min-width:100%!important;border-radius:16px 16px 0 0;
+    padding:8px 8px env(safe-area-inset-bottom,8px);
+    transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);display:block!important;
+    box-shadow:0 -4px 30px rgba(0,0,0,.12);animation:none!important}
+  .ctx-menu.open{transform:translateY(0)}
+  .ctx-menu::before{content:'';display:block;width:36px;height:4px;border-radius:2px;background:var(--g5);margin:6px auto 8px}
+  .ctx-item{padding:14px 16px;font-size:15px;gap:14px}
+  .ctx-item svg{width:18px;height:18px}
+  .ctx-sep{margin:2px 12px}
+
+  .pnl-bg{backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
 
   /* Onboarding */
-  .onboard{padding:16px}
-  .ob-card{padding:28px 20px}
+  .onboard{padding:16px;-webkit-overflow-scrolling:touch}
+  .ob-card{padding:32px 24px;border-radius:16px}
+  .ob-card h1{font-size:26px}
+  .ob-card input{padding:14px;font-size:16px;border-radius:8px}
+  .ob-btn{padding:16px;font-size:15px;border-radius:8px}
+  .user-item{padding:14px 16px;border-radius:8px}
+  .user-item .u-av{width:36px;height:36px;font-size:14px}
+  .user-item .u-name{font-size:15px}
+
+  /* Loading */
+  .loading{font-size:14px}
+
+  /* Sidebar on mobile */
+  .sb-brand{padding:env(safe-area-inset-top,20px) 20px 20px;padding-bottom:20px}
+  .sb-item{padding:12px 14px;font-size:14px;border-radius:8px}
+  .sb-item .sb-logo{width:28px;height:28px}
+  .sb-add{padding:12px 14px;font-size:13px}
+  .sb-user{padding:16px 20px}
+  .sb-user .uname{font-size:14px}
+  .sb-user .logout{font-size:12px;padding:6px 12px}
 }
 </style>
 </head>
@@ -573,6 +656,7 @@ function closeMobSidebar(){
 function renderMobileCards(){
   if(!projectData)return'';
   let h='<div class="mob-view" style="display:none">';
+  let cardIdx=0;
   for(const g of projectData.groups){
     const items=projectData.items.filter(i=>i.group_id===g.id);
     const done=items.filter(i=>i.status==='done').length;
@@ -580,14 +664,17 @@ function renderMobileCards(){
       <div class="mob-grp-bar" style="background:${g.color}"></div>
       <div class="mob-grp-name" style="color:${g.color}">${esc(g.name)}</div>
       <div class="mob-grp-count">${done}/${items.length}</div>
+      <div class="mob-grp-toggle" style="${g.collapsed?'transform:rotate(-90deg)':''}">&#9662;</div>
     </div>`;
     if(!g.collapsed){
+      h+=`<div class="mob-grp-items">`;
       for(const it of items){
         const st=STATUSES.find(s=>s.id===it.status)||STATUSES[0];
         const owners=getItemOwners(it.id);
         const partners=getItemPartners(it.id);
         const displayName=cleanName(it.name);
-        h+=`<div class="mob-card" onclick="openDetail('${it.id}')" oncontextmenu="openCtxMenu(event,'${it.id}')">
+        const delay=Math.min(cardIdx*40,300);
+        h+=`<div class="mob-card" style="animation:mobCardIn .35s cubic-bezier(.2,.8,.4,1) ${delay}ms both" onclick="openDetail('${it.id}')" oncontextmenu="openCtxMenu(event,'${it.id}')">
           <div class="mob-card-head">
             <div class="mob-card-dot" style="background:${g.color}"></div>
             <div class="mob-card-name">${esc(displayName)||'(naamloos)'}</div>
@@ -597,13 +684,18 @@ function renderMobileCards(){
             ${it.start_date?`<div class="mob-card-date">${fd(it.start_date)}${it.end_date?' – '+fd(it.end_date):''}</div>`:''}
             ${owners.length?`<div class="mob-card-owners">${owners.map(m=>`<div class="owner-av" style="background:${m.color}">${(m.name||'?').charAt(0).toUpperCase()}</div>`).join('')}</div>`:''}
           </div>
-          ${partners.length?`<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">${partners.map(pp=>`<span class="pp">${esc(pp.name)}</span>`).join('')}</div>`:''}
+          ${partners.length?`<div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">${partners.map(pp=>`<span class="pp">${esc(pp.name)}</span>`).join('')}</div>`:''}
+          <div class="mob-status-row" onclick="event.stopPropagation()">
+            ${STATUSES.map(s=>`<button class="mob-status-opt${it.status===s.id?' active':''}" style="background:${ST_BG[s.id]};color:${s.id==='todo'?'#555':'#fff'}" onclick="event.stopPropagation();setStatus('${it.id}','${s.id}')">${s.l.split(' ').pop()}</button>`).join('')}
+          </div>
         </div>`;
+        cardIdx++;
       }
       h+=`<div class="mob-add-btn" onclick="event.stopPropagation();addIt('${g.id}')">+ Activiteit</div>`;
+      h+=`</div>`;
     }
   }
-  h+=`<div class="mob-add-btn" onclick="addGrp()" style="margin-top:8px">+ Nieuwe groep</div>`;
+  h+=`<div class="mob-add-btn" onclick="addGrp()">+ Nieuwe groep</div>`;
   h+=`</div>`;
   return h;
 }
