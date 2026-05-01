@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agency Planner</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+:root{
+  --accent:#1a1a1a;--accent-hover:#000;
+  --brand:#E8E4DF;--brand-dark:#D4CFC8;
+  --bk:#0F0F0F;--g05:#1a1a1a;--g1:#2a2a2a;--g15:#333;--g2:#555;--g3:#888;--g4:#aaa;--g5:#ddd;--g55:#e8e8e8;--g6:#f3f2f0;--g7:#fafaf9;
+  --white:#fff;--font:'Inter',system-ui,-apple-system,sans-serif;
+  --done:#2DA44E;--wip:#D29922;--todo:#B0B0B0;--stuck:#CF222E;
+  --blue:#0969DA;--purple:#8250DF;--teal:#0891B2;
+  --radius:8px;--radius-sm:5px;--radius-xs:3px;
+  --shadow:0 1px 3px rgba(0,0,0,.04),0 1px 2px rgba(0,0,0,.06);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08);
+  --shadow-lg:0 12px 40px rgba(0,0,0,.12);
+  --ease:all .15s ease;
+  --sidebar-w:240px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font);background:#F8F8F6;color:var(--bk);font-size:13px;min-height:100vh;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
+input,select,textarea,button{font-family:var(--font);letter-spacing:-.01em}
+::selection{background:var(--bk);color:var(--white)}
+
+/* SIDEBAR */
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bk);color:var(--white);display:flex;flex-direction:column;z-index:60}
+.sb-brand{padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,.06)}
+.sb-brand-name{font-size:15px;font-weight:800;letter-spacing:-.4px;font-style:italic}
+.sb-brand-sub{font-size:9px;color:rgba(255,255,255,.35);margin-top:3px;letter-spacing:.3px;text-transform:uppercase;font-weight:500}
+.sb-user{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px;font-size:12px;color:rgba(255,255,255,.5)}
+.sb-user .av{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+.sb-user .uname{flex:1;font-weight:600;color:rgba(255,255,255,.9);font-size:12px}
+.sb-user .logout{background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:10px;font-family:var(--font);transition:var(--ease);padding:4px 8px;border-radius:var(--radius-xs)}
+.sb-user .logout:hover{color:#fff;background:rgba(255,255,255,.08)}
+.sb-section{padding:16px 12px;flex:1;overflow-y:auto}
+.sb-section-title{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.25);padding:0 8px 10px}
+.sb-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:var(--radius-sm);cursor:pointer;transition:var(--ease);font-size:12px;font-weight:500;color:rgba(255,255,255,.55);margin-bottom:1px}
+.sb-item:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.9)}
+.sb-item.active{background:rgba(255,255,255,.1);color:#fff;font-weight:600}
+.sb-item .sb-logo{width:24px;height:24px;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;overflow:hidden}
+.sb-item .sb-logo img{width:100%;height:100%;object-fit:cover}
+.sb-item .sb-cname{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-add{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius-sm);cursor:pointer;color:rgba(255,255,255,.3);font-size:11px;font-weight:500;transition:var(--ease);margin:6px 0}
+.sb-add:hover{color:rgba(255,255,255,.7);background:rgba(255,255,255,.04)}
+
+/* MAIN */
+.main{margin-left:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column}
+
+/* TOPBAR */
+.topbar{height:56px;background:var(--white);border-bottom:1px solid var(--g55);display:flex;align-items:center;padding:0 28px;gap:10px;position:sticky;top:0;z-index:40}
+.topbar-title{font-size:15px;font-weight:700;letter-spacing:-.3px}
+.topbar-type{font-size:10px;color:var(--g3);font-weight:500;background:var(--g6);padding:3px 10px;border-radius:20px;letter-spacing:-.01em}
+.view-tabs{display:flex;gap:0;border:1px solid var(--g5);border-radius:var(--radius-sm);overflow:hidden}
+.vtab{padding:6px 16px;font-size:11px;font-weight:600;cursor:pointer;border:none;background:var(--white);color:var(--g3);transition:var(--ease);border-right:1px solid var(--g5);font-family:var(--font);letter-spacing:-.01em}
+.vtab:last-child{border-right:none}
+.vtab:hover{color:var(--bk);background:var(--g6)}
+.vtab.on{background:var(--bk);color:var(--white)}
+.tb{padding:6px 14px;border-radius:var(--radius-sm);border:1px solid var(--g5);background:var(--white);font-size:11px;font-weight:600;cursor:pointer;color:var(--g2);transition:var(--ease);display:inline-flex;align-items:center;gap:5px;font-family:var(--font);letter-spacing:-.01em}
+.tb:hover{border-color:var(--g3);color:var(--bk);background:var(--g7)}
+.tb-primary{background:var(--bk);color:var(--white);border-color:var(--bk)}
+.tb-primary:hover{background:#000}
+.tb svg{width:14px;height:14px}
+
+/* WORKSPACE */
+.ws{padding:24px 28px 80px;flex:1}
+
+/* GROUP */
+.grp{margin-bottom:12px;background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;border:1px solid rgba(0,0,0,.04)}
+.grp-head{display:flex;align-items:center;gap:4px;padding:0 16px 0 0;height:44px;cursor:pointer;user-select:none;transition:var(--ease)}
+.grp-head:hover{background:rgba(0,0,0,.01)}
+.grp-bar{width:4px;height:100%;flex-shrink:0}
+.grp-toggle{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-xs);font-size:10px;color:var(--g3);margin-left:8px;flex-shrink:0;transition:var(--ease)}
+.grp-toggle:hover{background:var(--g6)}
+.grp-name{font-size:13px;font-weight:700;flex:1;padding:2px 6px;border-radius:var(--radius-xs);outline:none;letter-spacing:-.02em}
+.grp-name:focus{background:rgba(0,0,0,.03);box-shadow:0 0 0 2px rgba(0,0,0,.08)}
+.grp-count{font-size:10px;font-weight:500;color:var(--g4);margin-right:4px}
+.grp-menu{opacity:0;transition:var(--ease);display:flex;gap:1px}
+.grp-head:hover .grp-menu{opacity:1}
+.grp-menu button{width:24px;height:24px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--g4);cursor:pointer;border-radius:var(--radius-xs);font-size:11px;transition:var(--ease)}
+.grp-menu button:hover{background:var(--g6);color:var(--bk)}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;table-layout:fixed}
+.tbl th{padding:0 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--g3);text-align:left;border-bottom:1px solid var(--g55);background:var(--g7);height:32px;white-space:nowrap;position:relative;overflow:visible}
+.tbl th.c-drag{width:28px;padding:0}
+.tbl th.c-item{width:280px;padding-left:8px}
+.tbl th.c-owner{width:110px}
+.tbl th.c-status{width:130px}
+.tbl th.c-partner{width:140px}
+.tbl th.c-date{width:160px}
+.tbl th.c-dep{width:180px}
+.tbl th.c-x{width:16px}
+.tbl td{padding:0;border-bottom:1px solid #F0EFEC;height:42px;vertical-align:middle;overflow:hidden}
+.tbl tr{transition:background .06s}
+.tbl tr:hover td{background:#FCFCFB}
+/* Column resize handle */
+.col-resize-handle{position:absolute;right:-2px;top:0;bottom:0;width:5px;cursor:col-resize;z-index:5;background:transparent;transition:background .1s}
+.col-resize-handle:hover,.col-resize-handle.active{background:var(--bk)}
+body.is-col-resizing{cursor:col-resize!important;user-select:none!important}
+body.is-col-resizing *{cursor:col-resize!important}
+
+.cl{padding:0 12px;height:100%;display:flex;align-items:center;min-height:42px}
+.cl-item{gap:8px;padding-left:8px}
+.cl-item .cdot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.cl-item input{border:none;background:none;font-size:13px;font-weight:500;outline:none;width:100%;color:var(--bk);padding:2px 0;letter-spacing:-.01em}
+.cl-item input::placeholder{color:var(--g4);font-weight:400}
+.item-btn{width:26px;height:26px;border-radius:var(--radius-xs);border:none;background:none;cursor:pointer;color:var(--g4);display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:0;transition:var(--ease)}
+.tbl tr:hover .item-btn{opacity:1}
+.item-btn:hover{background:var(--g6);color:var(--bk)}
+
+/* CONTEXT MENU */
+.ctx-menu{position:fixed;background:var(--white);border:1px solid var(--g55);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:90;min-width:180px;padding:4px;display:none;animation:popIn .08s ease}
+.ctx-menu.open{display:block}
+.ctx-item{display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:var(--radius-xs);cursor:pointer;font-size:12px;font-weight:500;transition:background .06s;color:var(--bk);letter-spacing:-.01em}
+.ctx-item:hover{background:var(--g6)}
+.ctx-item svg{width:14px;height:14px;flex-shrink:0;color:var(--g3)}
+.ctx-item.danger{color:var(--stuck)}
+.ctx-item.danger svg{color:var(--stuck)}
+.ctx-item.danger:hover{background:#FFF0F0}
+.ctx-sep{height:1px;background:var(--g6);margin:3px 6px}
+
+.cl-status{padding:5px 6px}
+.st-pill{width:100%;height:30px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--white);cursor:pointer;transition:all .12s ease;letter-spacing:.01em;text-transform:none;box-shadow:none}
+.st-pill:hover{filter:brightness(.92);transform:scale(.98)}
+.st-pill[data-s="todo"]{background:#E0E0E0;color:#555}
+.st-pill[data-s="wip"]{background:#F0B429;color:#fff}
+.st-pill[data-s="done"]{background:#2DA44E;color:#fff}
+.st-pill[data-s="stuck"]{background:#CF222E;color:#fff}
+
+.cl-owner{padding:4px 8px;cursor:pointer;display:flex;align-items:center;gap:3px}
+.owner-av{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--white);border:2px solid var(--white);box-shadow:0 0 0 1px rgba(0,0,0,.06);flex-shrink:0}
+.owner-add{width:24px;height:24px;border-radius:50%;border:1.5px dashed var(--g5);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--g4);cursor:pointer;transition:var(--ease)}
+.owner-add:hover{border-color:var(--bk);color:var(--bk);border-style:solid}
+
+.cl-partner{padding:4px 8px;cursor:pointer;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.pp{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;background:var(--g6);color:var(--g2);white-space:nowrap;border:1px solid var(--g55)}
+.pp-add{width:18px;height:18px;border-radius:50%;border:1.5px dashed var(--g5);display:inline-flex;align-items:center;justify-content:center;font-size:11px;color:var(--g4);cursor:pointer;transition:var(--ease);vertical-align:middle}
+.pp-add:hover{border-color:var(--bk);color:var(--bk);border-style:solid}
+
+.cl-date{padding:4px 8px}
+.dw{display:flex;align-items:center;gap:2px;background:var(--g7);border-radius:var(--radius-sm);padding:2px 4px;border:1px solid transparent;transition:var(--ease)}
+.dw:hover{border-color:var(--g5)}
+.dw:focus-within{border-color:var(--bk);background:var(--white)}
+.dw input{border:none;background:none;font-size:10px;color:var(--g2);outline:none;width:72px;text-align:center;cursor:pointer;padding:3px 0;font-family:var(--font)}
+.dw input::-webkit-calendar-picker-indicator{opacity:0;position:absolute}
+.dw .sep{color:var(--g5);font-size:9px}
+
+.cl-dep{padding:4px 8px;cursor:pointer;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.dtag{padding:2px 7px;border-radius:var(--radius-xs);font-size:9px;font-weight:600;background:rgba(9,105,218,.06);color:var(--blue);white-space:nowrap}
+.dep-empty{color:var(--g5);font-size:18px;font-weight:300;line-height:1}
+
+.add-row{display:flex;align-items:center;gap:6px;padding:8px 20px;cursor:pointer;color:var(--g4);font-size:11px;font-weight:500;transition:var(--ease);border-top:1px solid #F0EFEC}
+.add-row:hover{color:var(--bk);background:rgba(0,0,0,.01)}
+.add-grp{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;cursor:pointer;color:var(--g4);font-size:11px;font-weight:600;transition:var(--ease);border-radius:var(--radius);border:1.5px dashed var(--g5)}
+.add-grp:hover{color:var(--bk);border-color:var(--g3);background:rgba(0,0,0,.01)}
+
+/* TIMELINE */
+.tl-bar-wrap{display:flex;height:calc(100vh - 140px);min-height:400px;background:var(--white);border-radius:0 0 var(--radius) var(--radius);box-shadow:var(--shadow);overflow:hidden;border:1px solid rgba(0,0,0,.04)}
+.tl-side{width:260px;min-width:260px;border-right:1px solid var(--g55);overflow-y:auto;background:var(--white)}
+.tl-side-head{height:52px;display:flex;align-items:center;padding:0 16px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--g3);background:var(--g7);border-bottom:1px solid var(--g55);position:sticky;top:0;z-index:2}
+.tl-lbl{height:40px;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid #F0EFEC;overflow:hidden;font-size:12px;font-weight:500;letter-spacing:-.01em}
+.tl-lbl.is-grp{height:32px;background:var(--g7);border-bottom:1px solid var(--g55);font-weight:700;font-size:11px}
+.tl-lbl .tl-c{width:3px;height:14px;border-radius:2px;flex-shrink:0}
+.tl-lbl .tl-nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-lbl .tl-st{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.tl-lbl .tl-cnt{font-size:9px;color:var(--g4);font-weight:500}
+.tl-chart{flex:1;overflow:auto;position:relative}
+.tl-chart-head{height:52px;display:flex;flex-direction:column;background:var(--g7);border-bottom:1px solid var(--g55);position:sticky;top:0;z-index:2}
+.tl-mo-row{display:flex;height:26px;position:relative}
+.tl-wk-row{display:flex;height:26px;position:relative}
+.tl-mo{position:absolute;height:26px;display:flex;align-items:center;padding-left:10px;font-size:11px;font-weight:700;color:var(--g1);border-left:1px solid var(--g55);letter-spacing:-.02em}
+.tl-mo.cur{color:var(--stuck)}
+.tl-wk{position:absolute;height:26px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;color:var(--g4);border-left:1px solid var(--g6)}
+.tl-body{position:relative}
+.tl-grid{position:absolute;top:0;bottom:0;left:0;right:0;pointer-events:none;z-index:0}
+.tl-gl{position:absolute;top:0;bottom:0;width:1px}
+.tl-gl.mo{background:var(--g55)}
+.tl-gl.wk{background:#F0EFEC}
+.tl-today{position:absolute;top:0;bottom:0;width:2px;background:var(--stuck);z-index:4;pointer-events:none}
+.tl-today::before{content:'';position:absolute;top:-5px;left:-3px;width:8px;height:8px;background:var(--stuck);border-radius:50%}
+.tl-br{height:40px;position:relative;border-bottom:1px solid #F0EFEC}
+.tl-br.is-grp{height:32px;background:var(--g7);border-bottom:1px solid var(--g55)}
+.tl-b{position:absolute;top:50%;transform:translateY(-50%);border-radius:5px;min-width:6px;z-index:2;display:flex;align-items:center;overflow:visible;cursor:pointer;transition:box-shadow .1s}
+.tl-b:hover{box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.tl-b .btext{padding:0 10px;font-size:10px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;letter-spacing:-.01em}
+.tl-b.is-grp{height:6px;border-radius:3px;opacity:.3;cursor:default}
+.tl-b.is-grp:hover{box-shadow:none}
+.tl-b.is-done{opacity:.35}
+.tl-b .drag-edge{position:absolute;top:0;bottom:0;width:8px;cursor:col-resize;z-index:3}
+.tl-b .drag-edge.left{left:-2px;border-radius:5px 0 0 5px}
+.tl-b .drag-edge.right{right:-2px;border-radius:0 5px 5px 0}
+.tl-b .drag-edge:hover{background:rgba(255,255,255,.25)}
+.tl-tb{display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--white);border-radius:var(--radius) var(--radius) 0 0;border-bottom:1px solid var(--g55);box-shadow:var(--shadow);border:1px solid rgba(0,0,0,.04);border-bottom:1px solid var(--g55)}
+.tl-tb .spacer{flex:1}
+.zoom-grp{display:flex;border:1px solid var(--g5);border-radius:var(--radius-sm);overflow:hidden}
+.z-btn{padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;border:none;background:var(--white);color:var(--g3);transition:var(--ease);border-right:1px solid var(--g5);font-family:var(--font);white-space:nowrap;letter-spacing:-.01em}
+.z-btn:last-child{border-right:none}
+.z-btn:hover{background:var(--g6);color:var(--bk)}
+.z-btn.on{background:var(--bk);color:var(--white)}
+.tl-today-btn{padding:5px 12px;border-radius:var(--radius-sm);border:1px solid var(--stuck);background:none;color:var(--stuck);font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);transition:var(--ease);letter-spacing:-.01em}
+.tl-today-btn:hover{background:var(--stuck);color:#fff}
+
+/* BAR POPUP */
+.bar-pop{position:fixed;background:var(--white);border:1px solid var(--g55);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:60;width:280px;padding:18px;display:none;animation:popIn .1s ease}
+.bar-pop.open{display:block}
+.bar-pop h4{font-size:14px;font-weight:700;margin-bottom:10px;letter-spacing:-.03em}
+.bar-pop .bp-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;align-items:center}
+.bar-pop .bp-label{color:var(--g3);font-weight:500}
+.bar-pop .bp-val{font-weight:600}
+.bar-pop .bp-status{display:inline-block;padding:2px 10px;border-radius:var(--radius-xs);font-size:10px;font-weight:700;color:#fff}
+.bar-pop .bp-open{display:block;text-align:center;margin-top:12px;padding:7px;border:1px solid var(--g5);border-radius:var(--radius-sm);font-size:11px;font-weight:600;color:var(--g2);cursor:pointer;background:none;width:100%;font-family:var(--font);transition:var(--ease)}
+.bar-pop .bp-open:hover{background:var(--bk);color:#fff;border-color:var(--bk)}
+
+/* POPOVER */
+.pop{position:fixed;background:var(--white);border:1px solid var(--g55);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:80;min-width:200px;max-height:320px;overflow-y:auto;padding:6px;display:none;animation:popIn .1s ease}
+@keyframes popIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.pop.open{display:block}
+.po-t{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--g3);padding:8px 8px 4px}
+.po-i{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-weight:500;transition:background .06s}
+.po-i:hover{background:var(--g6)}
+.po-ck{width:16px;height:16px;border:1.5px solid var(--g5);border-radius:var(--radius-xs);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0;transition:var(--ease)}
+.po-i.on .po-ck{background:var(--bk);border-color:var(--bk);color:var(--white)}
+.po-sep{height:1px;background:var(--g6);margin:4px 6px}
+.po-inp{display:flex;gap:4px;padding:6px}
+.po-inp input{flex:1;padding:7px 10px;border:1px solid var(--g5);border-radius:var(--radius-sm);font-size:12px;outline:none;transition:var(--ease)}
+.po-inp input:focus{border-color:var(--bk);box-shadow:0 0 0 2px rgba(0,0,0,.06)}
+.po-inp button{padding:7px 12px;border:none;background:var(--bk);color:var(--white);border-radius:var(--radius-sm);font-size:11px;font-weight:700;cursor:pointer;transition:var(--ease)}
+.po-inp button:hover{background:#000}
+
+/* PANEL */
+.pnl-bg{position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:70;display:none;backdrop-filter:blur(3px)}
+.pnl-bg.open{display:block}
+.pnl{position:fixed;top:0;right:-520px;bottom:0;width:480px;background:var(--white);z-index:71;transition:right .2s cubic-bezier(.4,0,.2,1);box-shadow:var(--shadow-lg);display:flex;flex-direction:column}
+.pnl.open{right:0}
+.pnl-head{padding:24px 28px;border-bottom:1px solid var(--g55);display:flex;align-items:flex-start;gap:12px}
+.pnl-head h2{flex:1;font-size:17px;font-weight:800;letter-spacing:-.04em}
+.pnl-close{width:28px;height:28px;border:1px solid var(--g5);border-radius:var(--radius-sm);background:none;cursor:pointer;font-size:13px;color:var(--g3);display:flex;align-items:center;justify-content:center;transition:var(--ease)}
+.pnl-close:hover{background:var(--g6);color:var(--bk)}
+.pnl-body{flex:1;overflow-y:auto;padding:24px 28px}
+.pf{margin-bottom:18px}
+.pf-l{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--g3);margin-bottom:6px}
+.pf textarea{width:100%;min-height:80px;padding:12px;border:1px solid var(--g5);border-radius:var(--radius-sm);font-size:12px;outline:none;resize:vertical;line-height:1.6;transition:var(--ease)}
+.pf textarea:focus{border-color:var(--bk);box-shadow:0 0 0 2px rgba(0,0,0,.06)}
+
+/* ONBOARDING / LOGIN */
+.onboard{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px}
+.ob-card{background:var(--white);border-radius:12px;box-shadow:var(--shadow-lg);padding:44px;width:420px;max-width:95vw;text-align:center;border:1px solid rgba(0,0,0,.04)}
+.ob-card h1{font-size:22px;font-weight:900;letter-spacing:-.05em;margin-bottom:4px;font-style:italic}
+.ob-card h2{font-size:17px;font-weight:800;margin-bottom:4px;letter-spacing:-.03em}
+.ob-card p{font-size:13px;color:var(--g3);margin-bottom:24px;line-height:1.5}
+.ob-card label{display:block;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--g3);margin-bottom:4px;margin-top:16px}
+.ob-card label:first-of-type{margin-top:0}
+.ob-card input,.ob-card select{width:100%;padding:10px 12px;border:1px solid var(--g5);border-radius:var(--radius-sm);font-size:13px;outline:none;transition:var(--ease)}
+.ob-card input:focus{border-color:var(--bk);box-shadow:0 0 0 3px rgba(0,0,0,.06)}
+.ob-logo-upload{width:72px;height:72px;border-radius:10px;border:2px dashed var(--g5);display:flex;align-items:center;justify-content:center;margin:12px auto;cursor:pointer;overflow:hidden;position:relative;color:var(--g4);font-size:20px;background:var(--g7);transition:var(--ease)}
+.ob-logo-upload:hover{border-color:var(--bk);color:var(--bk)}
+.ob-logo-upload img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.ob-logo-upload input{display:none}
+.ob-btn{width:100%;padding:12px;border:none;border-radius:var(--radius-sm);background:var(--bk);color:var(--white);font-size:13px;font-weight:700;cursor:pointer;margin-top:24px;transition:var(--ease);font-family:var(--font);letter-spacing:-.01em}
+.ob-btn:hover{background:#000;box-shadow:var(--shadow-md)}
+.ob-btn.secondary{background:none;color:var(--g3);margin-top:8px;font-size:12px}
+.ob-btn.secondary:hover{color:var(--bk);background:none;box-shadow:none}
+@keyframes fadeSlide{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+
+/* USER LIST */
+.user-list{display:flex;flex-direction:column;gap:4px;margin-bottom:16px;text-align:left}
+.user-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--g55);border-radius:var(--radius-sm);cursor:pointer;transition:var(--ease)}
+.user-item:hover{border-color:var(--bk);background:var(--g7)}
+.user-item .u-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.user-item .u-name{font-size:13px;font-weight:600;letter-spacing:-.02em}
+.user-item .u-email{font-size:11px;color:var(--g3)}
+
+/* LOADING */
+.loading{display:flex;align-items:center;justify-content:center;min-height:100vh;font-size:13px;color:var(--g3);font-weight:500}
+
+/* PROGRESS BAR */
+.grp-progress{display:flex;gap:1px;height:3px;margin-right:8px;width:60px;flex-shrink:0}
+.grp-progress span{flex:1;border-radius:2px;background:var(--g6)}
+.grp-progress span.filled{background:var(--done)}
+
+/* DRAG HANDLE */
+.drag-handle{width:28px;display:flex;align-items:center;justify-content:center;cursor:grab;color:var(--g5);flex-shrink:0;padding:0}
+.drag-handle:active{cursor:grabbing}
+.drag-handle svg{opacity:0;transition:opacity .1s}
+.tbl tr:hover .drag-handle svg{opacity:1}
+.tbl tr.row-dragging{opacity:.35;background:var(--g6)}
+.tbl tr.row-dragging td{background:var(--g6)!important}
+.row-drop-indicator{position:absolute;left:0;right:0;height:2px;background:var(--bk);z-index:50;pointer-events:none;border-radius:1px}
+.row-drop-indicator::before{content:'';position:absolute;left:-1px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--bk)}
+.row-ghost{position:fixed;pointer-events:none;z-index:100;opacity:.9;background:var(--white);border-radius:var(--radius-sm);box-shadow:0 8px 30px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.1);overflow:hidden;transition:none}
+body.is-row-dragging{cursor:grabbing!important;user-select:none!important}
+body.is-row-dragging *{cursor:grabbing!important}
+
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--g5);border-radius:3px}::-webkit-scrollbar-thumb:hover{background:var(--g3)}
+
+/* MOBILE HAMBURGER */
+.mob-burger{display:none;width:36px;height:36px;border:none;background:none;cursor:pointer;color:var(--bk);align-items:center;justify-content:center;border-radius:var(--radius-sm);flex-shrink:0}
+.mob-burger:hover{background:var(--g6)}
+.mob-burger svg{width:20px;height:20px}
+.sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:59;backdrop-filter:blur(2px)}
+
+/* MOBILE CARD VIEW */
+.mob-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--g55);padding:14px 16px;margin-bottom:8px;box-shadow:var(--shadow)}
+.mob-card-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.mob-card-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.mob-card-name{font-size:14px;font-weight:600;flex:1;letter-spacing:-.02em}
+.mob-card-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.mob-card-pill{height:26px;padding:0 10px;border-radius:4px;font-size:10px;font-weight:700;color:#fff;display:inline-flex;align-items:center}
+.mob-card-date{font-size:11px;color:var(--g3);font-weight:500}
+.mob-card-owners{display:flex;gap:-4px;margin-left:auto}
+.mob-card-owners .owner-av{width:22px;height:22px;font-size:8px;margin-left:-4px}
+.mob-grp-head{display:flex;align-items:center;gap:8px;padding:12px 4px 8px;cursor:pointer}
+.mob-grp-head .mob-grp-bar{width:4px;height:20px;border-radius:2px;flex-shrink:0}
+.mob-grp-head .mob-grp-name{font-size:14px;font-weight:700;flex:1;letter-spacing:-.02em}
+.mob-grp-head .mob-grp-count{font-size:11px;color:var(--g4);font-weight:500}
+.mob-add-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px dashed var(--g5);border-radius:var(--radius);color:var(--g4);font-size:12px;font-weight:500;cursor:pointer;margin-bottom:16px}
+.mob-add-btn:active{background:var(--g6)}
+
+/* MOBILE BOTTOM BAR */
+.mob-bottom{display:none;position:fixed;bottom:0;left:0;right:0;height:56px;background:var(--white);border-top:1px solid var(--g55);z-index:50;padding:0 8px;align-items:center;justify-content:space-around}
+.mob-bottom-btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 12px;border:none;background:none;color:var(--g3);font-size:9px;font-weight:600;cursor:pointer;border-radius:var(--radius-sm);font-family:var(--font);letter-spacing:0}
+.mob-bottom-btn.active{color:var(--bk)}
+.mob-bottom-btn svg{width:20px;height:20px}
+
+/* === MOBILE RESPONSIVE === */
+@media(max-width:768px){
+  .sidebar{left:-260px;transition:left .25s cubic-bezier(.4,0,.2,1);width:260px}
+  .sidebar.mob-open{left:0}
+  .sb-overlay.mob-open{display:block}
+  .main{margin-left:0!important;padding-bottom:64px}
+  .mob-burger{display:flex}
+  .mob-bottom{display:flex}
+
+  /* Topbar */
+  .topbar{padding:0 12px;gap:6px;height:52px}
+  .topbar-title{font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .topbar-type{display:none}
+  .view-tabs{display:none}
+  .tb{display:none}
+
+  /* Workspace */
+  .ws{padding:12px 12px 20px}
+
+  /* Hide desktop table on mobile, show cards */
+  .grp{display:none}
+  .add-grp{display:none}
+  .mob-view{display:block!important}
+
+  /* Timeline: horizontal scroll */
+  .tl-bar-wrap{height:calc(100vh - 170px)}
+  .tl-side{width:140px;min-width:140px}
+  .tl-lbl{font-size:10px;padding:0 8px}
+  .tl-side-head{padding:0 8px;font-size:9px}
+
+  /* Panel full screen on mobile */
+  .pnl{width:100%;right:-100%}
+  .pnl-head{padding:16px}
+  .pnl-body{padding:16px}
+
+  /* Popover */
+  .pop{max-width:calc(100vw - 24px)}
+  .bar-pop{max-width:calc(100vw - 24px)}
+  .ctx-menu{max-width:calc(100vw - 24px)}
+
+  /* Onboarding */
+  .onboard{padding:16px}
+  .ob-card{padding:28px 20px}
+}
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">Laden...</div></div>
+<div class="bar-pop" id="barPop"></div>
+<div class="ctx-menu" id="ctxMenu"></div>
+<div class="pop" id="statusPop"></div>
+<div class="pop" id="ownerPop"></div>
+<div class="pop" id="partnerPop"></div>
+<div class="pop" id="depPop"></div>
+<div class="pnl-bg" id="pnlBg" onclick="closePnl()"></div>
+<div class="pnl" id="pnl"><div class="pnl-head"><h2 id="pnlTitle"></h2><button class="pnl-close" onclick="closePnl()">&#x2715;</button></div><div class="pnl-body" id="pnlBody"></div></div>
+
+<script>
+// === SUPABASE ===
+const SB_URL='https://aksujioicgdiwcvezalu.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrc3VqaW9pY2dkaXdjdmV6YWx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2MzIyMzIsImV4cCI6MjA5MzIwODIzMn0.2f2lD_iIlsL7CerCQtnBt0VunkWxYBkWBRB2IliNbZI';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+
+// === STATE ===
+let currentUser=null;
+let projects=[];
+let activeProjectId=null;
+let projectData=null;
+let view='table';
+let tlZoom=1;
+
+const COLORS=['#3A3A3A','#555','#1a1a1a','#6B7280','#4B5563','#374151','#1F2937','#111827','#0F172A','#334155'];
+const AV_COLORS=['#0969DA','#8250DF','#0891B2','#D29922','#2DA44E','#CF222E','#6E40C9','#BF8700'];
+const STATUSES=[{id:'todo',l:'Niet gestart'},{id:'wip',l:'Mee bezig'},{id:'done',l:'Afgerond'},{id:'stuck',l:'Vastgelopen'}];
+const ST_BG={todo:'#E0E0E0',wip:'#F0B429',done:'#2DA44E',stuck:'#CF222E'};
+const ZOOM=[{id:'days',l:'Dagen',dw:16,showW:false},{id:'weeks',l:'Weken',dw:7,showW:true},{id:'months',l:'Maanden',dw:3}];
+const DAY=864e5;
+
+// Group colors — muted, professional palette
+const GRP_COLORS=['#2563EB','#0891B2','#7C3AED','#059669','#D97706','#DC2626','#4F46E5','#0D9488','#9333EA','#C2410C'];
+
+function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
+function fd(s){if(!s)return'';return new Date(s+'T00:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'short'})}
+
+// Strip amounts from task names: removes patterns like (EUR X.XXX), (EURX), (X.XXX), etc.
+function cleanName(name){
+  if(!name)return name;
+  return name
+    .replace(/\s*\(\s*(?:EUR|€)\s*[\d.,]+\s*\)/gi,'')
+    .replace(/\s*\(€[\d.,]+\)/gi,'')
+    .replace(/\s*€\s*[\d.,]+/g,'')
+    .replace(/\s*\(\s*[\d]+[.,][\d]+\s*\)/g,'')
+    .trim();
+}
+
+// === INIT ===
+async function init(){
+  const savedUser=localStorage.getItem('ap_user');
+  if(savedUser){try{currentUser=JSON.parse(savedUser)}catch(e){}}
+  if(currentUser){
+    const{data}=await sb.from('users').select('*').eq('id',currentUser.id).single();
+    if(data){currentUser=data;await loadProjects();renderApp()}
+    else{currentUser=null;localStorage.removeItem('ap_user');renderLogin()}
+  } else {renderLogin()}
+}
+
+// === AUTH ===
+async function renderLogin(){
+  const{data:users}=await sb.from('users').select('*').order('name');
+  const root=document.getElementById('root');
+  let h=`<div class="onboard"><div class="ob-card">
+    <h1>Agency Planner</h1>
+    <p style="margin-top:4px">Selecteer je account of maak een nieuw profiel aan.</p>`;
+  if(users&&users.length){
+    h+=`<div class="user-list">`;
+    for(const u of users){
+      h+=`<div class="user-item" onclick="loginAs('${u.id}')">
+        <div class="u-av" style="background:${u.color}">${(u.name||'?').charAt(0).toUpperCase()}</div>
+        <div><div class="u-name">${esc(u.name)}</div>${u.email?`<div class="u-email">${esc(u.email)}</div>`:''}</div>
+      </div>`;
+    }
+    h+=`</div><div style="font-size:11px;color:var(--g4);margin:20px 0 8px;font-weight:500">Nieuw account aanmaken</div>`;
+  }
+  h+=`<label>Naam</label>
+    <input id="regName" placeholder="Volledige naam">
+    <label>E-mail</label>
+    <input id="regEmail" placeholder="naam@agency.today" type="email">
+    <button class="ob-btn" onclick="registerUser()">Account aanmaken</button>
+  </div></div>`;
+  root.innerHTML=h;
+}
+
+async function loginAs(userId){
+  const{data}=await sb.from('users').select('*').eq('id',userId).single();
+  if(data){currentUser=data;localStorage.setItem('ap_user',JSON.stringify(data));await loadProjects();renderApp()}
+}
+
+async function registerUser(){
+  const name=document.getElementById('regName').value.trim();
+  if(!name){document.getElementById('regName').style.borderColor='var(--stuck)';return}
+  const email=document.getElementById('regEmail').value.trim()||null;
+  const color=AV_COLORS[Math.floor(Math.random()*AV_COLORS.length)];
+  const{data,error}=await sb.from('users').insert({name,email,color}).select().single();
+  if(data){currentUser=data;localStorage.setItem('ap_user',JSON.stringify(data));await loadProjects();renderApp()}
+  else{alert('Fout: '+(error?.message||'Probeer opnieuw'))}
+}
+
+function logout(){currentUser=null;localStorage.removeItem('ap_user');renderLogin()}
+
+// === LOAD DATA ===
+async function loadProjects(){
+  const{data}=await sb.from('projects').select('*,client:clients(*)').order('created_at');
+  projects=data||[];
+  if(!activeProjectId&&projects.length)activeProjectId=projects[0].id;
+  if(activeProjectId)await loadProjectData();
+}
+
+async function loadProjectData(){
+  const pid=activeProjectId;if(!pid)return;
+  const[grps,items,partners,members,owners,iPartners,deps]=await Promise.all([
+    sb.from('groups').select('*').eq('project_id',pid).order('position'),
+    sb.from('items').select('*').eq('project_id',pid).order('position'),
+    sb.from('partners').select('*').eq('project_id',pid).order('name'),
+    sb.from('project_members').select('*,user:users(*)').eq('project_id',pid),
+    sb.from('item_owners').select('*').in('item_id',(await sb.from('items').select('id').eq('project_id',pid)).data?.map(i=>i.id)||[]),
+    sb.from('item_partners').select('*').in('item_id',(await sb.from('items').select('id').eq('project_id',pid)).data?.map(i=>i.id)||[]),
+    sb.from('item_dependencies').select('*').in('item_id',(await sb.from('items').select('id').eq('project_id',pid)).data?.map(i=>i.id)||[]),
+  ]);
+  projectData={
+    groups:grps.data||[],items:items.data||[],partners:partners.data||[],
+    members:(members.data||[]).map(m=>({...m.user,role:m.role,pm_id:m.id})),
+    owners:owners.data||[],iPartners:iPartners.data||[],deps:deps.data||[],
+  };
+}
+
+function curProject(){return projects.find(p=>p.id===activeProjectId)}
+function getItemOwners(itemId){return(projectData?.owners||[]).filter(o=>o.item_id===itemId).map(o=>projectData.members.find(m=>m.id===o.user_id)).filter(Boolean)}
+function getItemPartners(itemId){return(projectData?.iPartners||[]).filter(p=>p.item_id===itemId).map(ip=>projectData.partners.find(p=>p.id===ip.partner_id)).filter(Boolean)}
+function getItemDeps(itemId){return(projectData?.deps||[]).filter(d=>d.item_id===itemId).map(d=>projectData.items.find(i=>i.id===d.depends_on_id)).filter(Boolean)}
+function itemById(id){return projectData?.items.find(i=>i.id===id)}
+function groupById(id){return projectData?.groups.find(g=>g.id===id)}
+
+// === RENDER APP ===
+function renderApp(){
+  if(!currentUser){renderLogin();return}
+  const p=curProject();
+  let h=`<div class="sb-overlay" id="sbOverlay" onclick="closeMobSidebar()"></div>`;
+  h+=`<div class="sidebar" id="sidebarEl">${renderSidebar()}</div><div class="main">`;
+  if(p&&projectData){
+    h+=`<div class="topbar">
+      <button class="mob-burger" onclick="openMobSidebar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+      <div class="topbar-title">${esc(p.name)}</div>
+      ${p.type?`<div class="topbar-type">${esc(p.type)}</div>`:''}
+      <div style="flex:1"></div>
+      <div class="view-tabs">
+        <button class="vtab${view==='table'?' on':''}" onclick="setView('table')">Tabel</button>
+        <button class="vtab${view==='timeline'?' on':''}" onclick="setView('timeline')">Tijdlijn</button>
+      </div>
+      <button class="tb" onclick="openPartnerMgr()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Partners</button>
+      <button class="tb" onclick="openTeamMgr()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4-4v2"/><circle cx="12" cy="7" r="4"/></svg>Team</button>
+      <button class="tb" onclick="exportCSV()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</button>
+    </div>`;
+    h+=`<div class="ws" id="ws">`;
+    h+=view==='table'?renderTable():'';
+    h+=view==='timeline'?renderTimeline():'';
+    // Mobile card view (hidden on desktop via CSS)
+    if(view==='table') h+=renderMobileCards();
+    h+=`</div>`;
+  } else {
+    h+=`<div class="ws" style="display:flex;align-items:center;justify-content:center;min-height:60vh;text-align:center">
+      <div>
+        <div style="font-size:20px;font-weight:800;letter-spacing:-.04em;margin-bottom:6px">Welkom, ${esc(currentUser.name)}</div>
+        <div style="color:var(--g3);font-size:13px;margin-bottom:28px">Selecteer een project of maak een nieuw project aan.</div>
+        <button class="tb tb-primary" onclick="startNewProject()" style="font-size:13px;padding:10px 24px">+ Nieuw project</button>
+      </div>
+    </div>`;
+  }
+  // Mobile bottom nav
+  h+=`<div class="mob-bottom">
+    <button class="mob-bottom-btn${view==='table'?' active':''}" onclick="setView('table')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Taken</button>
+    <button class="mob-bottom-btn${view==='timeline'?' active':''}" onclick="setView('timeline')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>Tijdlijn</button>
+    <button class="mob-bottom-btn" onclick="openTeamMgr()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4-4v2"/><circle cx="12" cy="7" r="4"/></svg>Team</button>
+    <button class="mob-bottom-btn" onclick="openMobSidebar()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Menu</button>
+  </div>`;
+  h+=`</div>`;
+  document.getElementById('root').innerHTML=h;
+  if(view==='timeline'&&p)initTlScroll();
+}
+
+// === MOBILE SIDEBAR ===
+function openMobSidebar(){
+  document.getElementById('sidebarEl')?.classList.add('mob-open');
+  document.getElementById('sbOverlay')?.classList.add('mob-open');
+}
+function closeMobSidebar(){
+  document.getElementById('sidebarEl')?.classList.remove('mob-open');
+  document.getElementById('sbOverlay')?.classList.remove('mob-open');
+}
+
+// === MOBILE CARD VIEW ===
+function renderMobileCards(){
+  if(!projectData)return'';
+  let h='<div class="mob-view" style="display:none">';
+  for(const g of projectData.groups){
+    const items=projectData.items.filter(i=>i.group_id===g.id);
+    const done=items.filter(i=>i.status==='done').length;
+    h+=`<div class="mob-grp-head" onclick="togGrp('${g.id}')">
+      <div class="mob-grp-bar" style="background:${g.color}"></div>
+      <div class="mob-grp-name" style="color:${g.color}">${esc(g.name)}</div>
+      <div class="mob-grp-count">${done}/${items.length}</div>
+    </div>`;
+    if(!g.collapsed){
+      for(const it of items){
+        const st=STATUSES.find(s=>s.id===it.status)||STATUSES[0];
+        const owners=getItemOwners(it.id);
+        const partners=getItemPartners(it.id);
+        const displayName=cleanName(it.name);
+        h+=`<div class="mob-card" onclick="openDetail('${it.id}')" oncontextmenu="openCtxMenu(event,'${it.id}')">
+          <div class="mob-card-head">
+            <div class="mob-card-dot" style="background:${g.color}"></div>
+            <div class="mob-card-name">${esc(displayName)||'(naamloos)'}</div>
+          </div>
+          <div class="mob-card-meta">
+            <div class="mob-card-pill" style="background:${ST_BG[it.status||'todo']};${it.status==='todo'?'color:#555':''}">${st.l}</div>
+            ${it.start_date?`<div class="mob-card-date">${fd(it.start_date)}${it.end_date?' – '+fd(it.end_date):''}</div>`:''}
+            ${owners.length?`<div class="mob-card-owners">${owners.map(m=>`<div class="owner-av" style="background:${m.color}">${(m.name||'?').charAt(0).toUpperCase()}</div>`).join('')}</div>`:''}
+          </div>
+          ${partners.length?`<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">${partners.map(pp=>`<span class="pp">${esc(pp.name)}</span>`).join('')}</div>`:''}
+        </div>`;
+      }
+      h+=`<div class="mob-add-btn" onclick="event.stopPropagation();addIt('${g.id}')">+ Activiteit</div>`;
+    }
+  }
+  h+=`<div class="mob-add-btn" onclick="addGrp()" style="margin-top:8px">+ Nieuwe groep</div>`;
+  h+=`</div>`;
+  return h;
+}
+
+function renderSidebar(){
+  let h=`<div class="sb-brand"><div class="sb-brand-name">Agency Planner</div><div class="sb-brand-sub">Projectmanagement</div></div>`;
+  h+=`<div class="sb-user"><div class="av" style="background:${currentUser.color}">${(currentUser.name||'?').charAt(0).toUpperCase()}</div><span class="uname">${esc(currentUser.name)}</span><button class="logout" onclick="logout()">Uit</button></div>`;
+  h+=`<div class="sb-section"><div class="sb-section-title">Projecten</div>`;
+  for(const p of projects){
+    const isActive=p.id===activeProjectId;
+    const cname=p.client?.name||p.name;
+    const logo=p.client?.logo_url;
+    h+=`<div class="sb-item${isActive?' active':''}" onclick="switchProject('${p.id}')">
+      <div class="sb-logo" style="background:${p.color||'#333'}">${logo?`<img src="${esc(logo)}">`:(cname||'?').charAt(0).toUpperCase()}</div>
+      <span class="sb-cname">${esc(cname)}</span>
+    </div>`;
+  }
+  h+=`<div class="sb-add" onclick="startNewProject()">+ Nieuw project</div></div>`;
+  return h;
+}
+
+async function switchProject(id){activeProjectId=id;await loadProjectData();view='table';closeMobSidebar();renderApp()}
+function setView(v){view=v;renderApp()}
+
+// === NEW PROJECT ===
+let obStep=1,obData={};
+function startNewProject(){obStep=1;obData={};renderNewProject()}
+function renderNewProject(){
+  const root=document.getElementById('root');
+  if(obStep===1){
+    root.innerHTML=`<div class="sidebar">${renderSidebar()}</div><div class="main"><div class="onboard"><div class="ob-card">
+      <h2>Nieuw project</h2><p>Klantgegevens en projecttype.</p>
+      <label>Klantnaam</label><input id="obClient" placeholder="Bijv. Stedelijk Lyceum Rotterdam" value="${esc(obData.client||'')}">
+      <label>Projectnaam</label><input id="obName" placeholder="Bijv. Communicatieplan 2026" value="${esc(obData.name||'')}">
+      <label>Type</label><input id="obType" placeholder="Bijv. Campagne, Branding, PR" value="${esc(obData.type||'')}">
+      <button class="ob-btn" onclick="obNext()">Volgende</button>
+      <button class="ob-btn secondary" onclick="renderApp()">Annuleer</button>
+    </div></div></div>`;
+  } else {
+    const initial=(obData.client||'?').charAt(0).toUpperCase();
+    root.innerHTML=`<div class="sidebar">${renderSidebar()}</div><div class="main"><div class="onboard"><div class="ob-card" style="animation:fadeSlide .3s ease">
+      <div style="font-size:11px;color:var(--g3);cursor:pointer;text-align:left;margin-bottom:16px;font-weight:500" onclick="obStep=1;renderNewProject()">&larr; Terug</div>
+      <h2>${esc(obData.client)}</h2><p>${esc(obData.name)} &mdash; ${esc(obData.type)}</p>
+      <label>Logo (optioneel)</label>
+      <div class="ob-logo-upload" onclick="document.getElementById('obFile').click()">
+        <span id="obLogoPreview">${obData.logo?`<img src="${obData.logo}">`:`<span style="font-size:24px;font-weight:800;color:var(--g4)">${initial}</span>`}</span>
+        <input type="file" id="obFile" accept="image/*" onchange="previewLogo(this)">
+      </div>
+      <button class="ob-btn" onclick="createProject()">Project aanmaken</button>
+      <button class="ob-btn secondary" onclick="createProject()">Overslaan</button>
+    </div></div></div>`;
+  }
+}
+function obNext(){
+  const client=document.getElementById('obClient').value.trim();
+  if(!client){document.getElementById('obClient').style.borderColor='var(--stuck)';return}
+  obData.client=client;
+  obData.name=document.getElementById('obName').value.trim()||client;
+  obData.type=document.getElementById('obType').value.trim()||'Project';
+  obStep=2;renderNewProject();
+}
+function previewLogo(input){
+  if(!input.files||!input.files[0])return;
+  const reader=new FileReader();
+  reader.onload=e=>{obData.logo=e.target.result;document.getElementById('obLogoPreview').innerHTML=`<img src="${e.target.result}">`};
+  reader.readAsDataURL(input.files[0]);
+}
+async function createProject(){
+  const{data:client}=await sb.from('clients').insert({name:obData.client,logo_url:obData.logo||null}).select().single();
+  if(!client)return;
+  const color=GRP_COLORS[projects.length%GRP_COLORS.length];
+  const{data:proj}=await sb.from('projects').insert({client_id:client.id,name:obData.name,type:obData.type,color}).select().single();
+  if(!proj)return;
+  await sb.from('project_members').insert({project_id:proj.id,user_id:currentUser.id,role:'admin'});
+  activeProjectId=proj.id;obStep=1;obData={};
+  await loadProjects();renderApp();
+}
+
+// === TABLE VIEW ===
+function renderTable(){
+  if(!projectData)return'';
+  let h='';
+  for(const g of projectData.groups){
+    const items=projectData.items.filter(i=>i.group_id===g.id);
+    const done=items.filter(i=>i.status==='done').length;
+    const total=items.length;
+    // Progress dots
+    let progressH='<div class="grp-progress">';
+    for(let i=0;i<total;i++){progressH+=`<span class="${i<done?'filled':''}"></span>`}
+    progressH+='</div>';
+
+    h+=`<div class="grp"><div class="grp-head" onclick="togGrp('${g.id}')">
+      <div class="grp-bar" style="background:${g.color}"></div>
+      <div class="grp-toggle">${g.collapsed?'&#9656;':'&#9662;'}</div>
+      <div class="grp-name" style="color:${g.color}" contenteditable="true" spellcheck="false" data-gid="${g.id}"
+        onclick="event.stopPropagation();this.focus()" onblur="renGrp('${g.id}',this.textContent)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${esc(g.name)}</div>
+      ${total>0?progressH:''}
+      <div class="grp-count">${done}/${total}</div>
+      <div class="grp-menu">
+        <button title="Kleur wijzigen" onclick="event.stopPropagation();chGrpColor('${g.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="${g.color}" stroke="none"><circle cx="12" cy="12" r="5"/></svg></button>
+        <button title="Groep verwijderen" onclick="event.stopPropagation();delGrp('${g.id}')">&#x2715;</button>
+      </div>
+    </div>`;
+    if(!g.collapsed){
+      h+=`<table class="tbl" data-group="${g.id}"><thead><tr>
+        <th class="c-drag"></th>
+        <th class="c-item">Activiteit<div class="col-resize-handle" onmousedown="colResizeStart(event)"></div></th>
+        <th class="c-status">Status<div class="col-resize-handle" onmousedown="colResizeStart(event)"></div></th>
+        <th class="c-owner">Eigenaar<div class="col-resize-handle" onmousedown="colResizeStart(event)"></div></th>
+        <th class="c-partner">Partners<div class="col-resize-handle" onmousedown="colResizeStart(event)"></div></th>
+        <th class="c-date">Periode<div class="col-resize-handle" onmousedown="colResizeStart(event)"></div></th>
+        <th class="c-dep">Afhankelijk van<div class="col-resize-handle" onmousedown="colResizeStart(event)"></div></th>
+        <th class="c-x"></th>
+      </tr></thead><tbody>`;
+      for(const it of items){
+        const st=STATUSES.find(s=>s.id===it.status)||STATUSES[0];
+        const owners=getItemOwners(it.id);
+        const partners=getItemPartners(it.id);
+        const deps=getItemDeps(it.id);
+        const displayName=cleanName(it.name);
+        h+=`<tr data-item-id="${it.id}" data-group-id="${g.id}" oncontextmenu="openCtxMenu(event,'${it.id}')">
+          <td><div class="cl drag-handle" onmousedown="rowDragStart(event,'${it.id}','${g.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div></td>
+          <td><div class="cl cl-item"><div class="cdot" style="background:${g.color}"></div>
+            <input value="${esc(displayName)}" placeholder="Nieuwe activiteit..." onchange="updIt('${it.id}','name',this.value)" onkeydown="if(event.key==='Enter')this.blur()">
+            <button class="item-btn" title="Details" onclick="openDetail('${it.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+          </div></td>
+          <td><div class="cl cl-status"><div class="st-pill" data-s="${it.status||'todo'}" onclick="openStPop(event,'${it.id}')">${st.l}</div></div></td>
+          <td><div class="cl cl-owner" onclick="openOwnerPop(event,'${it.id}')">
+            ${owners.map(m=>`<div class="owner-av" style="background:${m.color}" title="${esc(m.name)}">${(m.name||'?').charAt(0).toUpperCase()}</div>`).join('')}
+            <div class="owner-add">+</div>
+          </div></td>
+          <td><div class="cl cl-partner" onclick="openPartnerPop(event,'${it.id}')">
+            ${partners.map(pp=>`<span class="pp">${esc(pp.name)}</span>`).join('')}
+            <span class="pp-add">+</span>
+          </div></td>
+          <td><div class="cl cl-date"><div class="dw">
+            <input type="date" value="${it.start_date||''}" onchange="updIt('${it.id}','start_date',this.value)">
+            <span class="sep">&rarr;</span>
+            <input type="date" value="${it.end_date||''}" onchange="updIt('${it.id}','end_date',this.value)">
+          </div></div></td>
+          <td><div class="cl cl-dep" onclick="openDepPop(event,'${it.id}')">
+            ${deps.length?deps.map(d=>`<span class="dtag">${esc(cleanName(d.name))}</span>`).join(''):'<span class="dep-empty">&mdash;</span>'}
+          </div></td>
+          <td></td>
+        </tr>`;
+      }
+      h+=`</tbody></table><div class="add-row" onclick="addIt('${g.id}')">+ Activiteit toevoegen</div>`;
+    }
+    h+=`</div>`;
+  }
+  h+=`<div class="add-grp" onclick="addGrp()">+ Nieuwe groep</div>`;
+  return h;
+}
+
+// === TIMELINE VIEW ===
+let tlMinD,tlDayW;
+function renderTimeline(){
+  if(!projectData)return'';
+  const zoom=ZOOM[tlZoom];const dayW=zoom.dw;tlDayW=dayW;
+  const today=new Date();today.setHours(0,0,0,0);
+  let minD=new Date(today.getFullYear(),today.getMonth()-2,1);
+  let maxD=new Date(today.getFullYear(),today.getMonth()+10,0);
+  const td=projectData.items.flatMap(i=>[i.start_date,i.end_date].filter(Boolean)).map(d=>new Date(d+'T00:00:00'));
+  if(td.length){const e=new Date(Math.min(...td)),l=new Date(Math.max(...td));if(e<minD)minD=new Date(e.getFullYear(),e.getMonth()-1,1);if(l>maxD)maxD=new Date(l.getFullYear(),l.getMonth()+2,0)}
+  tlMinD=minD;
+  const totalDays=Math.round((maxD-minD)/DAY);const totalW=totalDays*dayW;
+  const tOff=Math.round((today-minD)/DAY);
+  function dOff(s){return Math.round((new Date(s+'T00:00:00')-minD)/DAY)}
+  const gwi=projectData.groups.filter(g=>projectData.items.some(i=>i.group_id===g.id));
+  if(!gwi.length)return'<div style="text-align:center;padding:60px;color:var(--g3);font-size:13px">Voeg activiteiten toe in de tabelweergave om de tijdlijn te zien.</div>';
+
+  let h=`<div class="tl-tb"><button class="tl-today-btn" onclick="scrollToToday()">Vandaag</button><div class="spacer"></div>
+    <div class="zoom-grp">${ZOOM.map((z,i)=>`<button class="z-btn${i===tlZoom?' on':''}" onclick="tlZoom=${i};renderApp()">${z.l}</button>`).join('')}</div></div>`;
+  h+=`<div class="tl-bar-wrap"><div class="tl-side" id="tlSide"><div class="tl-side-head">Activiteit</div>`;
+  for(const g of gwi){
+    const items=projectData.items.filter(i=>i.group_id===g.id);const dn=items.filter(i=>i.status==='done').length;
+    h+=`<div class="tl-lbl is-grp"><div class="tl-c" style="background:${g.color}"></div><span class="tl-nm" style="color:${g.color}">${esc(g.name)}</span><span class="tl-cnt">${dn}/${items.length}</span></div>`;
+    for(const it of items){h+=`<div class="tl-lbl"><div class="tl-st" style="background:${ST_BG[it.status||'todo']}"></div><span class="tl-nm">${esc(cleanName(it.name))||'(naamloos)'}</span><span class="tl-cnt">${it.start_date?fd(it.start_date)+(it.end_date?' – '+fd(it.end_date):''):''}</span></div>`}
+  }
+  h+=`</div><div class="tl-chart" id="tlChart"><div class="tl-chart-head" style="width:${totalW}px;min-width:${totalW}px"><div class="tl-mo-row">`;
+  let md=new Date(minD);while(md<=maxD){const ms=new Date(md.getFullYear(),md.getMonth(),1),me=new Date(md.getFullYear(),md.getMonth()+1,0);const s=Math.max(0,Math.round((ms-minD)/DAY)),e=Math.min(totalDays,Math.round((me-minD)/DAY)+1),w=(e-s)*dayW;const isCur=ms.getMonth()===today.getMonth()&&ms.getFullYear()===today.getFullYear();h+=`<div class="tl-mo${isCur?' cur':''}" style="left:${s*dayW}px;width:${w}px">${ms.toLocaleDateString('nl-NL',{month:'long'})} ${ms.getFullYear()}</div>`;md=new Date(md.getFullYear(),md.getMonth()+1,1)}
+  h+=`</div><div class="tl-wk-row">`;if(zoom.showW){let wd=new Date(minD);while(wd.getDay()!==1)wd.setDate(wd.getDate()+1);while(wd<=maxD){const o=Math.round((wd-minD)/DAY);h+=`<div class="tl-wk" style="left:${o*dayW}px;width:${7*dayW}px">W${getWk(wd)}</div>`;wd=new Date(wd.getTime()+7*DAY)}}
+  h+=`</div></div><div class="tl-body" style="width:${totalW}px;min-width:${totalW}px"><div class="tl-grid">`;
+  md=new Date(minD);while(md<=maxD){const ms=new Date(md.getFullYear(),md.getMonth(),1),o=Math.round((ms-minD)/DAY);if(o>0)h+=`<div class="tl-gl mo" style="left:${o*dayW}px"></div>`;md=new Date(md.getFullYear(),md.getMonth()+1,1)}
+  if(zoom.showW){let wd=new Date(minD);while(wd.getDay()!==1)wd.setDate(wd.getDate()+1);while(wd<=maxD){const o=Math.round((wd-minD)/DAY);h+=`<div class="tl-gl wk" style="left:${o*dayW}px"></div>`;wd=new Date(wd.getTime()+7*DAY)}}
+  if(tOff>=0&&tOff<=totalDays)h+=`<div class="tl-today" style="left:${tOff*dayW}px"></div>`;h+=`</div>`;
+  const barH=zoom.id==='days'?26:22;
+  for(const g of gwi){
+    const items=projectData.items.filter(i=>i.group_id===g.id);
+    const gd=items.flatMap(i=>[i.start_date,i.end_date].filter(Boolean));
+    h+=`<div class="tl-br is-grp">`;if(gd.length){const go=gd.map(d=>new Date(d+'T00:00:00'));const gs=Math.round((new Date(Math.min(...go))-minD)/DAY),ge=Math.round((new Date(Math.max(...go))-minD)/DAY);h+=`<div class="tl-b is-grp" style="left:${gs*dayW}px;width:${Math.max((ge-gs)*dayW,6)}px;background:${g.color}"></div>`}h+=`</div>`;
+    for(const it of items){const isDone=it.status==='done';h+=`<div class="tl-br">`;
+      if(it.start_date&&it.end_date){const is=dOff(it.start_date),ie=dOff(it.end_date),w=Math.max((ie-is)*dayW,6);h+=`<div class="tl-b${isDone?' is-done':''}" data-id="${it.id}" style="left:${is*dayW}px;width:${w}px;height:${barH}px;background:${g.color}" onclick="showBarPop(event,'${it.id}')"><div class="drag-edge left" onmousedown="startDrag(event,'${it.id}','start_date')"></div><span class="btext">${esc(cleanName(it.name))}</span><div class="drag-edge right" onmousedown="startDrag(event,'${it.id}','end_date')"></div></div>`}
+      else if(it.start_date){const is=dOff(it.start_date);h+=`<div class="tl-b" data-id="${it.id}" style="left:${is*dayW}px;width:${14*dayW}px;height:${barH}px;background:${g.color};border-right:3px dashed rgba(255,255,255,.4)" onclick="showBarPop(event,'${it.id}')"><div class="drag-edge left" onmousedown="startDrag(event,'${it.id}','start_date')"></div><span class="btext">${esc(cleanName(it.name))}</span><div class="drag-edge right" onmousedown="startDrag(event,'${it.id}','end_date')"></div></div>`}
+      h+=`</div>`}
+  }
+  h+=`</div></div></div>`;return h;
+}
+function initTlScroll(){const side=document.getElementById('tlSide'),ch=document.getElementById('tlChart');if(!side||!ch)return;ch.addEventListener('scroll',()=>{side.scrollTop=ch.scrollTop});side.addEventListener('scroll',()=>{ch.scrollTop=side.scrollTop});setTimeout(()=>scrollToToday(),80)}
+function scrollToToday(){const ch=document.getElementById('tlChart');if(!ch)return;const t=ch.querySelector('.tl-today');if(t)ch.scrollLeft=Math.max(0,parseInt(t.style.left)-ch.clientWidth/3)}
+function getWk(d){const t=new Date(d.getFullYear(),0,1);return Math.ceil(((d-t)/DAY+t.getDay()+1)/7)}
+
+// === DRAG ===
+let dragState=null;
+function startDrag(ev,itemId,field){
+  ev.preventDefault();ev.stopPropagation();closeBarPop();
+  const bar=ev.target.closest('.tl-b');if(!bar)return;
+  dragState={itemId,field,bar,origLeft:parseFloat(bar.style.left),origWidth:parseFloat(bar.style.width),startX:ev.clientX,moved:false};
+  document.body.style.cursor='col-resize';document.body.style.userSelect='none';
+  document.addEventListener('mousemove',onDrag);document.addEventListener('mouseup',endDrag);
+}
+function onDrag(ev){if(!dragState)return;const dx=ev.clientX-dragState.startX;if(Math.abs(dx)<2)return;dragState.moved=true;
+  if(dragState.field==='end_date'){dragState.bar.style.width=Math.max(tlDayW,dragState.origWidth+dx)+'px'}
+  else{dragState.bar.style.left=(dragState.origLeft+dx)+'px';dragState.bar.style.width=Math.max(tlDayW,dragState.origWidth-dx)+'px'}}
+async function endDrag(){document.body.style.cursor='';document.body.style.userSelect='';document.removeEventListener('mousemove',onDrag);document.removeEventListener('mouseup',endDrag);
+  if(!dragState||!dragState.moved){dragState=null;return}
+  const it=itemById(dragState.itemId);if(!it){dragState=null;return}
+  const newLeft=parseFloat(dragState.bar.style.left),newWidth=parseFloat(dragState.bar.style.width);
+  if(dragState.field==='start_date'){const dd=Math.round((newLeft-dragState.origLeft)/tlDayW);if(it.start_date){const nd=new Date(new Date(it.start_date+'T00:00:00').getTime()+dd*DAY);const ns=nd.toISOString().slice(0,10);if(!it.end_date||ns<it.end_date)await updIt(it.id,'start_date',ns)}}
+  else{const dd=Math.round((newWidth-dragState.origWidth)/tlDayW);const base=it.end_date?new Date(it.end_date+'T00:00:00'):new Date(it.start_date+'T00:00:00');const nd=new Date(base.getTime()+dd*DAY);const ns=nd.toISOString().slice(0,10);if(it.start_date&&ns>it.start_date)await updIt(it.id,'end_date',ns)}
+  dragState=null;await loadProjectData();renderApp()}
+
+// === BAR POPUP ===
+function showBarPop(ev,itemId){if(dragState&&dragState.moved)return;ev.stopPropagation();const it=itemById(itemId);if(!it)return;
+  const g=groupById(it.group_id);const st=STATUSES.find(s=>s.id===it.status)||STATUSES[0];const owners=getItemOwners(it.id);
+  const days=it.start_date&&it.end_date?Math.round((new Date(it.end_date+'T00:00:00')-new Date(it.start_date+'T00:00:00'))/DAY):0;
+  let h=`<h4>${esc(cleanName(it.name))||'(naamloos)'}</h4>`;
+  if(g)h+=`<div class="bp-row"><span class="bp-label">Groep</span><span class="bp-val" style="color:${g.color}">${esc(g.name)}</span></div>`;
+  h+=`<div class="bp-row"><span class="bp-label">Status</span><span class="bp-status" style="background:${ST_BG[it.status||'todo']};${it.status==='todo'?'color:var(--g2)':''}">${st.l}</span></div>`;
+  if(it.start_date)h+=`<div class="bp-row"><span class="bp-label">Start</span><span class="bp-val">${fd(it.start_date)}</span></div>`;
+  if(it.end_date)h+=`<div class="bp-row"><span class="bp-label">Deadline</span><span class="bp-val">${fd(it.end_date)}</span></div>`;
+  if(days>0)h+=`<div class="bp-row"><span class="bp-label">Duur</span><span class="bp-val">${days} dagen</span></div>`;
+  if(owners.length)h+=`<div class="bp-row"><span class="bp-label">Eigenaar</span><span class="bp-val">${owners.map(m=>esc(m.name)).join(', ')}</span></div>`;
+  h+=`<button class="bp-open" onclick="closeBarPop();openDetail('${it.id}')">Details openen</button>`;
+  const pop=document.getElementById('barPop');pop.innerHTML=h;const r=ev.target.closest('.tl-b').getBoundingClientRect();
+  pop.style.left=Math.min(r.left+r.width/2-140,innerWidth-300)+'px';pop.style.top=Math.min(r.bottom+8,innerHeight-300)+'px';
+  pop.classList.add('open')}
+function closeBarPop(){document.getElementById('barPop').classList.remove('open')}
+
+// === COLUMN RESIZE ===
+let colResize=null;
+
+function colResizeStart(ev){
+  ev.preventDefault();ev.stopPropagation();
+  const th=ev.target.closest('th');
+  if(!th)return;
+  const table=th.closest('table');
+  const startX=ev.clientX;
+  const startW=th.offsetWidth;
+  const handle=ev.target;
+  handle.classList.add('active');
+  document.body.classList.add('is-col-resizing');
+
+  // Get column index (skip drag column)
+  const ths=Array.from(table.querySelectorAll('thead th'));
+  const colIdx=ths.indexOf(th);
+
+  colResize={th,table,startX,startW,handle,colIdx};
+  document.addEventListener('mousemove',colResizeMove);
+  document.addEventListener('mouseup',colResizeEnd);
+}
+
+function colResizeMove(ev){
+  if(!colResize)return;
+  const dx=ev.clientX-colResize.startX;
+  const newW=Math.max(60,colResize.startW+dx);
+  colResize.th.style.width=newW+'px';
+}
+
+function colResizeEnd(){
+  if(!colResize)return;
+  colResize.handle.classList.remove('active');
+  document.body.classList.remove('is-col-resizing');
+  document.removeEventListener('mousemove',colResizeMove);
+  document.removeEventListener('mouseup',colResizeEnd);
+  colResize=null;
+}
+
+// === ROW DRAG & DROP (smooth) ===
+let rdrag=null;
+
+function rowDragStart(ev,itemId,groupId){
+  ev.preventDefault();ev.stopPropagation();
+  const tr=ev.target.closest('tr');
+  if(!tr)return;
+  const rect=tr.getBoundingClientRect();
+  const offsetY=ev.clientY-rect.top;
+  const offsetX=ev.clientX-rect.left;
+
+  // Create ghost clone
+  const ghost=document.createElement('div');
+  ghost.className='row-ghost';
+  ghost.style.width=rect.width+'px';
+  ghost.style.height=rect.height+'px';
+  ghost.style.left=rect.left+'px';
+  ghost.style.top=rect.top+'px';
+  // Clone the row content into a mini table so it renders properly
+  const tbl=document.createElement('table');
+  tbl.className='tbl';
+  tbl.style.cssText='margin:0;border:none;box-shadow:none;width:100%';
+  const tbody=document.createElement('tbody');
+  const clonedRow=tr.cloneNode(true);
+  // Copy computed widths for each td
+  const origTds=tr.querySelectorAll('td');
+  const cloneTds=clonedRow.querySelectorAll('td');
+  origTds.forEach((td,i)=>{if(cloneTds[i])cloneTds[i].style.width=td.offsetWidth+'px'});
+  tbody.appendChild(clonedRow);tbl.appendChild(tbody);ghost.appendChild(tbl);
+  document.body.appendChild(ghost);
+
+  // Create drop indicator line
+  const indicator=document.createElement('div');
+  indicator.className='row-drop-indicator';
+  indicator.style.display='none';
+  document.body.appendChild(indicator);
+
+  tr.classList.add('row-dragging');
+  document.body.classList.add('is-row-dragging');
+
+  rdrag={itemId,groupId,tr,ghost,indicator,offsetY,offsetX,startY:ev.clientY,moved:false};
+  document.addEventListener('mousemove',rowDragMove);
+  document.addEventListener('mouseup',rowDragEnd);
+}
+
+function rowDragMove(ev){
+  if(!rdrag)return;
+  if(!rdrag.moved&&Math.abs(ev.clientY-rdrag.startY)<3)return;
+  rdrag.moved=true;
+
+  // Move ghost
+  rdrag.ghost.style.top=(ev.clientY-rdrag.offsetY)+'px';
+  rdrag.ghost.style.left=rdrag.tr.getBoundingClientRect().left+'px';
+
+  // Find which row we're over
+  const rows=document.querySelectorAll(`tr[data-group-id="${rdrag.groupId}"]`);
+  let closestRow=null;let closestDist=Infinity;let insertAfter=false;
+  for(const row of rows){
+    if(row.dataset.itemId===rdrag.itemId)continue;
+    const r=row.getBoundingClientRect();
+    const midY=r.top+r.height/2;
+    const dist=Math.abs(ev.clientY-midY);
+    if(dist<closestDist){closestDist=dist;closestRow=row;insertAfter=ev.clientY>midY}
+  }
+  if(closestRow&&closestDist<60){
+    const r=closestRow.getBoundingClientRect();
+    const tbody=closestRow.closest('tbody');
+    const tbodyRect=tbody?tbody.getBoundingClientRect():{left:r.left};
+    rdrag.indicator.style.display='block';
+    rdrag.indicator.style.left=tbodyRect.left+'px';
+    rdrag.indicator.style.width=r.width+'px';
+    rdrag.indicator.style.top=(insertAfter?r.bottom:r.top)-1+'px';
+    rdrag._targetId=closestRow.dataset.itemId;
+    rdrag._insertAfter=insertAfter;
+  } else {
+    rdrag.indicator.style.display='none';
+    rdrag._targetId=null;
+  }
+}
+
+async function rowDragEnd(ev){
+  document.removeEventListener('mousemove',rowDragMove);
+  document.removeEventListener('mouseup',rowDragEnd);
+  if(!rdrag)return;
+  const{tr,ghost,indicator,itemId,groupId,_targetId,_insertAfter,moved}=rdrag;
+  rdrag=null;
+
+  // Clean up DOM
+  tr.classList.remove('row-dragging');
+  document.body.classList.remove('is-row-dragging');
+  ghost.remove();
+  indicator.remove();
+
+  if(!moved||!_targetId||_targetId===itemId)return;
+
+  // Reorder
+  const groupItems=projectData.items.filter(i=>i.group_id===groupId);
+  const ordered=groupItems.map(i=>i.id);
+  const fromIdx=ordered.indexOf(itemId);
+  if(fromIdx===-1)return;
+  ordered.splice(fromIdx,1);
+  let toIdx=ordered.indexOf(_targetId);
+  if(_insertAfter)toIdx++;
+  ordered.splice(toIdx,0,itemId);
+
+  // Update positions in DB
+  const updates=ordered.map((id,i)=>sb.from('items').update({position:i}).eq('id',id));
+  await Promise.all(updates);
+  await loadProjectData();
+  renderApp();
+}
+
+// === DB ACTIONS ===
+async function addGrp(){const p=curProject();if(!p)return;const color=GRP_COLORS[(projectData.groups.length)%GRP_COLORS.length];
+  await sb.from('groups').insert({project_id:p.id,name:'Nieuwe groep',color,position:projectData.groups.length});
+  await loadProjectData();renderApp();setTimeout(()=>{const el=document.querySelector('.grp:last-of-type .grp-name');if(el){el.focus();document.execCommand('selectAll',false,null)}},80)}
+async function renGrp(id,name){if(!name.trim())return;await sb.from('groups').update({name:name.trim()}).eq('id',id);await loadProjectData()}
+async function delGrp(id){if(!confirm('Groep en alle activiteiten verwijderen?'))return;await sb.from('groups').delete().eq('id',id);await loadProjectData();renderApp()}
+async function togGrp(id){const g=groupById(id);if(!g)return;await sb.from('groups').update({collapsed:!g.collapsed}).eq('id',id);await loadProjectData();renderApp()}
+async function chGrpColor(id){const g=groupById(id);if(!g)return;const ci=GRP_COLORS.indexOf(g.color);const nc=GRP_COLORS[(ci+1)%GRP_COLORS.length];await sb.from('groups').update({color:nc}).eq('id',id);await loadProjectData();renderApp()}
+
+async function addIt(gid){const p=curProject();if(!p)return;const cnt=projectData.items.filter(i=>i.group_id===gid).length;
+  await sb.from('items').insert({group_id:gid,project_id:p.id,name:'',status:'todo',position:cnt});
+  await loadProjectData();renderApp();setTimeout(()=>{const inputs=document.querySelectorAll('.cl-item input');if(inputs.length)inputs[inputs.length-1].focus()},60)}
+async function updIt(id,k,v){await sb.from('items').update({[k]:v||null}).eq('id',id);const it=itemById(id);if(it)it[k]=v}
+async function delIt(id){await sb.from('items').delete().eq('id',id);await loadProjectData();renderApp()}
+
+async function dupIt(id){
+  const it=itemById(id);if(!it)return;
+  const p=curProject();if(!p)return;
+  const groupItems=projectData.items.filter(i=>i.group_id===it.group_id);
+  const newPos=it.position!=null?it.position+1:groupItems.length;
+  // Shift all items below down by 1
+  const toShift=groupItems.filter(i=>i.position>=newPos&&i.id!==id);
+  if(toShift.length)await Promise.all(toShift.map(i=>sb.from('items').update({position:i.position+1}).eq('id',i.id)));
+  const{data:newItem}=await sb.from('items').insert({
+    group_id:it.group_id,project_id:p.id,
+    name:(it.name||'')+' (kopie)',status:it.status||'todo',
+    start_date:it.start_date,end_date:it.end_date,
+    description:it.description,position:newPos
+  }).select().single();
+  if(!newItem)return;
+  // Copy owners
+  const owners=getItemOwners(id);
+  if(owners.length)await sb.from('item_owners').insert(owners.map(o=>({item_id:newItem.id,user_id:o.id})));
+  // Copy partners
+  const partners=getItemPartners(id);
+  if(partners.length)await sb.from('item_partners').insert(partners.map(pp=>({item_id:newItem.id,partner_id:pp.id})));
+  // Copy dependencies
+  const deps=(projectData?.deps||[]).filter(d=>d.item_id===id);
+  if(deps.length)await sb.from('item_dependencies').insert(deps.map(d=>({item_id:newItem.id,depends_on_id:d.depends_on_id})));
+  await loadProjectData();renderApp();
+}
+
+// === CONTEXT MENU ===
+function openCtxMenu(ev,itemId){
+  ev.preventDefault();ev.stopPropagation();
+  closeAllPops();closeCtxMenu();
+  const it=itemById(itemId);if(!it)return;
+  const name=cleanName(it.name)||'(naamloos)';
+  const menu=document.getElementById('ctxMenu');
+  menu.innerHTML=`
+    <div class="ctx-item" onclick="closeCtxMenu();openDetail('${itemId}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      Details openen
+    </div>
+    <div class="ctx-item" onclick="closeCtxMenu();dupIt('${itemId}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      Dupliceren
+    </div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item danger" onclick="closeCtxMenu();delIt('${itemId}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+      Verwijderen
+    </div>`;
+  // Position
+  let x=ev.clientX,y=ev.clientY;
+  menu.classList.add('open');
+  const mw=menu.offsetWidth,mh=menu.offsetHeight;
+  if(x+mw>innerWidth)x=innerWidth-mw-8;
+  if(y+mh>innerHeight)y=innerHeight-mh-8;
+  menu.style.left=x+'px';menu.style.top=y+'px';
+}
+
+function closeCtxMenu(){document.getElementById('ctxMenu').classList.remove('open')}
+
+document.addEventListener('mousedown',function(ev){
+  const ctx=document.getElementById('ctxMenu');
+  if(ctx&&ctx.classList.contains('open')&&!ctx.contains(ev.target))closeCtxMenu();
+});
+
+// === STATUS POP ===
+function openStPop(ev,id){ev.stopPropagation();closeAllPops();const pop=document.getElementById('statusPop');
+  pop.innerHTML=STATUSES.map(s=>`<div class="po-i" onclick="setStatus('${id}','${s.id}')"><div style="width:12px;height:12px;border-radius:3px;background:${ST_BG[s.id]};flex-shrink:0"></div><span style="font-weight:600">${s.l}</span></div>`).join('');
+  posPop(pop,ev.target);pop.classList.add('open')}
+async function setStatus(id,st){await updIt(id,'status',st);await loadProjectData();renderApp()}
+
+// === OWNER POP ===
+function openOwnerPop(ev,id){ev.stopPropagation();closeAllPops();const pop=document.getElementById('ownerPop');
+  const owners=getItemOwners(id);const oIds=owners.map(o=>o.id);
+  let h='<div class="po-t">Eigenaar toewijzen</div>';
+  if(projectData.members.length){h+=projectData.members.map(m=>{const on=oIds.includes(m.id);return`<div class="po-i${on?' on':''}" onclick="togOwner('${id}','${m.id}',${!on})"><div class="po-ck">${on?'&#10003;':''}</div><div class="owner-av" style="background:${m.color};width:20px;height:20px;font-size:9px;border:none;box-shadow:none">${(m.name||'?').charAt(0).toUpperCase()}</div>${esc(m.name)}</div>`}).join('')}
+  else h+=`<div style="padding:10px 8px;font-size:12px;color:var(--g3)">Voeg eerst teamleden toe via 'Team'.</div>`;
+  pop.innerHTML=h;posPop(pop,ev.currentTarget);pop.classList.add('open')}
+async function togOwner(itemId,userId,add){
+  if(add)await sb.from('item_owners').insert({item_id:itemId,user_id:userId});
+  else await sb.from('item_owners').delete().eq('item_id',itemId).eq('user_id',userId);
+  await loadProjectData();renderApp()}
+
+// === PARTNER POP ===
+function openPartnerPop(ev,id){ev.stopPropagation();closeAllPops();const pop=document.getElementById('partnerPop');
+  const ps=getItemPartners(id);const pIds=ps.map(p=>p.id);
+  let h='<div class="po-t">Partners</div>';
+  if(projectData.partners.length){h+=projectData.partners.map(p=>{const on=pIds.includes(p.id);return`<div class="po-i${on?' on':''}" onclick="togPartner('${id}','${p.id}',${!on})"><div class="po-ck">${on?'&#10003;':''}</div>${esc(p.name)}</div>`}).join('');h+='<div class="po-sep"></div>'}
+  h+=`<div class="po-inp"><input id="popPPI" placeholder="Nieuwe partner..." onkeydown="if(event.key==='Enter')addPartnerInline('${id}')"><button onclick="addPartnerInline('${id}')">+</button></div>`;
+  pop.innerHTML=h;posPop(pop,ev.currentTarget);pop.classList.add('open')}
+async function togPartner(itemId,partnerId,add){
+  if(add)await sb.from('item_partners').insert({item_id:itemId,partner_id:partnerId});
+  else await sb.from('item_partners').delete().eq('item_id',itemId).eq('partner_id',partnerId);
+  await loadProjectData();renderApp()}
+async function addPartnerInline(itemId){const input=document.getElementById('popPPI');const name=input.value.trim();if(!name)return;
+  const p=curProject();const{data}=await sb.from('partners').insert({project_id:p.id,name}).select().single();
+  if(data)await sb.from('item_partners').insert({item_id:itemId,partner_id:data.id});
+  await loadProjectData();renderApp()}
+
+// === DEP POP ===
+function openDepPop(ev,id){ev.stopPropagation();closeAllPops();const pop=document.getElementById('depPop');
+  const ds=getItemDeps(id);const dIds=ds.map(d=>d.id);
+  let h='<div class="po-t">Afhankelijk van</div>';
+  for(const g of projectData.groups){const gi=projectData.items.filter(i=>i.group_id===g.id&&i.id!==id);if(!gi.length)continue;
+    h+=`<div style="font-size:9px;font-weight:700;color:${g.color};padding:8px 8px 2px">${esc(g.name)}</div>`;
+    h+=gi.map(si=>{const on=dIds.includes(si.id);return`<div class="po-i${on?' on':''}" onclick="togDep('${id}','${si.id}',${!on})"><div class="po-ck">${on?'&#10003;':''}</div>${esc(cleanName(si.name))||'(naamloos)'}</div>`}).join('')}
+  pop.innerHTML=h;posPop(pop,ev.currentTarget);pop.classList.add('open')}
+async function togDep(itemId,depId,add){
+  if(add)await sb.from('item_dependencies').insert({item_id:itemId,depends_on_id:depId});
+  else await sb.from('item_dependencies').delete().eq('item_id',itemId).eq('depends_on_id',depId);
+  await loadProjectData();renderApp()}
+
+function posPop(pop,a){const r=a.getBoundingClientRect();pop.style.left=Math.min(r.left,innerWidth-240)+'px';pop.style.top=Math.min(r.bottom+4,innerHeight-340)+'px'}
+function closeAllPops(){document.querySelectorAll('.pop').forEach(p=>p.classList.remove('open'));closeBarPop()}
+
+document.addEventListener('mousedown',function(ev){
+  const pops=document.querySelectorAll('.pop.open');
+  pops.forEach(pop=>{if(!pop.contains(ev.target))pop.classList.remove('open')});
+  const bp=document.getElementById('barPop');
+  if(bp&&bp.classList.contains('open')&&!bp.contains(ev.target))bp.classList.remove('open');
+});
+
+// === DETAIL PANEL ===
+function openDetail(id){const it=itemById(id);if(!it)return;const g=groupById(it.group_id);
+  document.getElementById('pnlTitle').textContent=cleanName(it.name)||'(naamloos)';
+  const deps=getItemDeps(id);const owners=getItemOwners(id);const partners=getItemPartners(id);
+  const st=STATUSES.find(s=>s.id===it.status)||STATUSES[0];
+  let h=`<div class="pf"><div class="pf-l">Groep</div><div style="font-size:14px;font-weight:700;color:${g?g.color:'#000'}">${g?esc(g.name):''}</div></div>
+    <div class="pf"><div class="pf-l">Status</div><div style="display:inline-flex;padding:4px 14px;border-radius:5px;background:${ST_BG[it.status||'todo']};color:${it.status==='todo'?'var(--g2)':'#fff'};font-size:11px;font-weight:700">${st.l}</div></div>
+    ${it.start_date||it.end_date?`<div class="pf"><div class="pf-l">Periode</div><div style="font-size:14px;font-weight:500">${fd(it.start_date)}${it.start_date&&it.end_date?' &rarr; ':''}${fd(it.end_date)}</div></div>`:''}
+    ${owners.length?`<div class="pf"><div class="pf-l">Eigenaar</div><div style="display:flex;gap:6px;flex-wrap:wrap">${owners.map(m=>`<div style="display:flex;align-items:center;gap:6px;padding:3px 10px;background:var(--g6);border-radius:20px;font-size:12px;font-weight:600"><div class="owner-av" style="background:${m.color};width:18px;height:18px;font-size:8px;border:none;box-shadow:none">${(m.name||'?').charAt(0).toUpperCase()}</div>${esc(m.name)}</div>`).join('')}</div></div>`:''}
+    ${partners.length?`<div class="pf"><div class="pf-l">Partners</div><div style="display:flex;gap:4px;flex-wrap:wrap">${partners.map(pp=>`<span class="pp">${esc(pp.name)}</span>`).join('')}</div></div>`:''}
+    ${deps.length?`<div class="pf"><div class="pf-l">Afhankelijk van</div><ul style="list-style:none">${deps.map(d=>`<li style="padding:4px 0;font-size:12px;color:var(--g2)">&rarr; ${esc(cleanName(d.name))}</li>`).join('')}</ul></div>`:''}
+    <div class="pf"><div class="pf-l">Notities</div><textarea placeholder="Notities toevoegen..." onblur="updIt('${id}','description',this.value)">${esc(it.description)}</textarea></div>`;
+  document.getElementById('pnlBody').innerHTML=h;document.getElementById('pnlBg').classList.add('open');document.getElementById('pnl').classList.add('open')}
+function closePnl(){document.getElementById('pnlBg').classList.remove('open');document.getElementById('pnl').classList.remove('open')}
+
+// === PARTNER MANAGER ===
+async function openPartnerMgr(){await loadProjectData();
+  let h=`<div style="margin-bottom:16px"><div style="font-size:13px;color:var(--g3);line-height:1.5">Externe partners voor dit project.</div></div>`;
+  if(projectData.partners.length){h+=projectData.partners.map(pp=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--g6)">
+    <input value="${esc(pp.name)}" style="flex:1;border:none;font-size:13px;font-weight:600;outline:none;background:none;letter-spacing:-.01em" onblur="renPartner('${pp.id}',this.value)">
+    <button class="tb" style="padding:4px 8px;font-size:10px" onclick="delPartner('${pp.id}')">&#x2715;</button></div>`).join('')}
+  h+=`<div style="display:flex;gap:6px;margin-top:16px"><input id="newPPI" placeholder="Nieuwe partner..." style="flex:1;padding:9px 12px;border:1px solid var(--g5);border-radius:var(--radius-sm);font-size:13px;outline:none;font-family:var(--font)" onkeydown="if(event.key==='Enter')addNewPartner()"><button class="tb tb-primary" onclick="addNewPartner()">Toevoegen</button></div>`;
+  document.getElementById('pnlTitle').textContent='Partners';document.getElementById('pnlBody').innerHTML=h;document.getElementById('pnlBg').classList.add('open');document.getElementById('pnl').classList.add('open')}
+async function addNewPartner(){const input=document.getElementById('newPPI');const name=input.value.trim();if(!name)return;const p=curProject();await sb.from('partners').insert({project_id:p.id,name});input.value='';await openPartnerMgr()}
+async function renPartner(id,name){if(!name.trim())return;await sb.from('partners').update({name:name.trim()}).eq('id',id)}
+async function delPartner(id){await sb.from('partners').delete().eq('id',id);await openPartnerMgr();await loadProjectData();renderApp()}
+
+// === TEAM MANAGER ===
+async function openTeamMgr(){await loadProjectData();
+  const{data:allUsers}=await sb.from('users').select('*').order('name');
+  const memberIds=projectData.members.map(m=>m.id);
+  let h=`<div style="margin-bottom:16px"><div style="font-size:13px;color:var(--g3);line-height:1.5">Teamleden die aan dit project werken.</div></div>`;
+  if(projectData.members.length){h+=`<div class="po-t">Huidig team</div>`;h+=projectData.members.map(m=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--g6)">
+    <div class="owner-av" style="background:${m.color};border:none;box-shadow:none">${(m.name||'?').charAt(0).toUpperCase()}</div>
+    <span style="flex:1;font-weight:600;font-size:13px">${esc(m.name)}</span>
+    <button class="tb" style="padding:4px 8px;font-size:10px" onclick="removeMember('${m.pm_id}')">&#x2715;</button></div>`).join('')}
+  const nonMembers=(allUsers||[]).filter(u=>!memberIds.includes(u.id));
+  if(nonMembers.length){h+=`<div class="po-t" style="margin-top:20px">Beschikbaar</div>`;h+=nonMembers.map(u=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--g6);cursor:pointer" onclick="addMemberToProject('${u.id}')">
+    <div class="owner-av" style="background:${u.color};border:none;box-shadow:none">${(u.name||'?').charAt(0).toUpperCase()}</div>
+    <span style="flex:1;font-weight:500;color:var(--g3);font-size:13px">${esc(u.name)}</span>
+    <span style="font-size:10px;color:var(--bk);font-weight:700">+ Toevoegen</span></div>`).join('')}
+  document.getElementById('pnlTitle').textContent='Team';document.getElementById('pnlBody').innerHTML=h;document.getElementById('pnlBg').classList.add('open');document.getElementById('pnl').classList.add('open')}
+async function addMemberToProject(userId){const p=curProject();await sb.from('project_members').insert({project_id:p.id,user_id:userId});await openTeamMgr()}
+async function removeMember(pmId){await sb.from('project_members').delete().eq('id',pmId);await openTeamMgr()}
+
+// === EXPORT ===
+function exportCSV(){if(!projectData)return;const p=curProject();
+  const lines=['Groep\tActiviteit\tStatus\tEigenaar\tPartners\tStart\tDeadline\tNotities'];
+  for(const g of projectData.groups){projectData.items.filter(i=>i.group_id===g.id).forEach(i=>{
+    const st=(STATUSES.find(s=>s.id===i.status)||STATUSES[0]).l;
+    const owners=getItemOwners(i.id).map(m=>m.name).join(', ');
+    const partners=getItemPartners(i.id).map(p=>p.name).join(', ');
+    lines.push([g.name,cleanName(i.name),st,owners,partners,i.start_date||'',i.end_date||'',i.description||''].join('\t'))})}
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/tab-separated-values'}));a.download=`${p?.name||'export'}-Planning.tsv`;a.click()}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAllPops();closePnl();closeBarPop()}});
+init();
+</script>
+</body>
+</html>
