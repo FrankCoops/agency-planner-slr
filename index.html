@@ -301,6 +301,19 @@ body.is-row-dragging *{cursor:grabbing!important}
 
 @keyframes mobCardIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 
+/* GROUP DRAG */
+.grp-drag-handle{width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:grab;color:var(--g5);flex-shrink:0;margin-left:8px;border-radius:var(--radius-xs);transition:var(--ease)}
+.grp-drag-handle:active{cursor:grabbing}
+.grp-drag-handle svg{opacity:0;transition:opacity .1s}
+.grp-head:hover .grp-drag-handle svg{opacity:1}
+.grp-drag-handle:hover{color:var(--g3);background:var(--g6)}
+.grp.grp-dragging{opacity:.3}
+.grp-drop-indicator{height:3px;background:var(--bk);border-radius:2px;margin:4px 0;position:relative}
+.grp-drop-indicator::before{content:'';position:absolute;left:-1px;top:-3px;width:9px;height:9px;border-radius:50%;background:var(--bk)}
+.grp-ghost{position:fixed;pointer-events:none;z-index:100;opacity:.85;border-radius:var(--radius);box-shadow:0 12px 40px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.1);overflow:hidden;transition:none;max-width:600px}
+body.is-grp-dragging{cursor:grabbing!important;user-select:none!important}
+body.is-grp-dragging *{cursor:grabbing!important}
+
 ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--g5);border-radius:3px}::-webkit-scrollbar-thumb:hover{background:var(--g3)}
 
 /* MOBILE HAMBURGER */
@@ -787,7 +800,8 @@ function renderTable(){
     for(let i=0;i<total;i++){progressH+=`<span class="${i<done?'filled':''}"></span>`}
     progressH+='</div>';
 
-    h+=`<div class="grp"><div class="grp-head" onclick="togGrp('${g.id}')">
+    h+=`<div class="grp" data-grp-id="${g.id}"><div class="grp-head" onclick="togGrp('${g.id}')">
+      <div class="grp-drag-handle" onmousedown="grpDragStart(event,'${g.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
       <div class="grp-bar" style="background:${g.color}"></div>
       <div class="grp-toggle">${g.collapsed?'&#9656;':'&#9662;'}</div>
       <div class="grp-name" style="color:${g.color}" contenteditable="true" spellcheck="false" data-gid="${g.id}"
@@ -934,6 +948,106 @@ function showBarPop(ev,itemId){if(dragState&&dragState.moved)return;ev.stopPropa
   pop.style.left=Math.min(r.left+r.width/2-140,innerWidth-300)+'px';pop.style.top=Math.min(r.bottom+8,innerHeight-300)+'px';
   pop.classList.add('open')}
 function closeBarPop(){document.getElementById('barPop').classList.remove('open')}
+
+// === GROUP DRAG & DROP ===
+let gdrag=null;
+
+function grpDragStart(ev,groupId){
+  ev.preventDefault();ev.stopPropagation();
+  const grpEl=ev.target.closest('.grp');
+  if(!grpEl)return;
+  const rect=grpEl.getBoundingClientRect();
+  const offsetY=ev.clientY-rect.top;
+
+  // Create ghost
+  const ghost=document.createElement('div');
+  ghost.className='grp-ghost';
+  ghost.style.width=rect.width+'px';
+  ghost.style.left=rect.left+'px';
+  ghost.style.top=rect.top+'px';
+  // Clone just the header for the ghost
+  const headClone=grpEl.querySelector('.grp-head').cloneNode(true);
+  headClone.style.cssText='background:#fff;border-radius:8px;';
+  ghost.appendChild(headClone);
+  document.body.appendChild(ghost);
+
+  // Create drop indicator
+  const indicator=document.createElement('div');
+  indicator.className='grp-drop-indicator';
+  indicator.style.display='none';
+  indicator.style.position='fixed';
+  indicator.style.zIndex='99';
+  document.body.appendChild(indicator);
+
+  grpEl.classList.add('grp-dragging');
+  document.body.classList.add('is-grp-dragging');
+
+  gdrag={groupId,grpEl,ghost,indicator,offsetY,startY:ev.clientY,moved:false};
+  document.addEventListener('mousemove',grpDragMove);
+  document.addEventListener('mouseup',grpDragEnd);
+}
+
+function grpDragMove(ev){
+  if(!gdrag)return;
+  if(!gdrag.moved&&Math.abs(ev.clientY-gdrag.startY)<4)return;
+  gdrag.moved=true;
+
+  gdrag.ghost.style.top=(ev.clientY-gdrag.offsetY)+'px';
+
+  // Find closest group
+  const allGrps=document.querySelectorAll('.grp[data-grp-id]');
+  let closestGrp=null,closestDist=Infinity,insertAfter=false;
+  for(const g of allGrps){
+    if(g.dataset.grpId===gdrag.groupId)continue;
+    const r=g.getBoundingClientRect();
+    const midY=r.top+r.height/2;
+    const dist=Math.abs(ev.clientY-midY);
+    if(dist<closestDist){closestDist=dist;closestGrp=g;insertAfter=ev.clientY>midY}
+  }
+  if(closestGrp&&closestDist<120){
+    const r=closestGrp.getBoundingClientRect();
+    const wsEl=document.getElementById('ws');
+    const wsRect=wsEl?wsEl.getBoundingClientRect():{left:r.left};
+    gdrag.indicator.style.display='block';
+    gdrag.indicator.style.left=wsRect.left+'px';
+    gdrag.indicator.style.width=r.width+'px';
+    gdrag.indicator.style.top=(insertAfter?r.bottom+2:r.top-5)+'px';
+    gdrag._targetId=closestGrp.dataset.grpId;
+    gdrag._insertAfter=insertAfter;
+  } else {
+    gdrag.indicator.style.display='none';
+    gdrag._targetId=null;
+  }
+}
+
+async function grpDragEnd(){
+  document.removeEventListener('mousemove',grpDragMove);
+  document.removeEventListener('mouseup',grpDragEnd);
+  if(!gdrag)return;
+  const{grpEl,ghost,indicator,groupId,_targetId,_insertAfter,moved}=gdrag;
+  gdrag=null;
+
+  grpEl.classList.remove('grp-dragging');
+  document.body.classList.remove('is-grp-dragging');
+  ghost.remove();
+  indicator.remove();
+
+  if(!moved||!_targetId||_targetId===groupId)return;
+
+  // Reorder groups
+  const ordered=projectData.groups.map(g=>g.id);
+  const fromIdx=ordered.indexOf(groupId);
+  if(fromIdx===-1)return;
+  ordered.splice(fromIdx,1);
+  let toIdx=ordered.indexOf(_targetId);
+  if(_insertAfter)toIdx++;
+  ordered.splice(toIdx,0,groupId);
+
+  // Save to DB
+  await Promise.all(ordered.map((id,i)=>sb.from('groups').update({position:i}).eq('id',id)));
+  await loadProjectData();
+  renderApp();
+}
 
 // === COLUMN RESIZE ===
 let colResize=null;
